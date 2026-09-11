@@ -37,9 +37,15 @@ screenshots/          application / query screenshots
 
 ```bash
 pip install -r requirements.txt
+python src/index_builder.py
 ```
+
+The first command installs NLTK (and later Streamlit). The second parses the
+100-document corpus, writes `output/inverted_index.json`, and writes
+`output/doc_metadata.json` for later modules.
 
 ## Status
 
-Project scaffolding is in place. The IR logic (Parts A–E) will be implemented
-in subsequent commits.
+Part A is in place: XML-style corpus parsing, a documented English stopword
+policy with Porter stemming, and a deterministic inverted index (df + tf
+postings) over all 100 documents. Parts B–E are still pending.
