@@ -88,3 +88,62 @@ jacket for men`) return sensible category-consistent top-10 lists, and the
 score ties (e.g. structurally identical `D034`/`D094`) break by ascending
 docID as intended. The pure VSM baseline is kept independent so it remains
 available for the later novelty-reranker comparison.
+
+## Entry 4 — Part C: positional index, phrase & proximity search
+
+I implemented `src/positional_index.py`: a positional index plus exact phrase
+search and `WITHIN/k` proximity search. The hard requirement here was to
+**reuse the exact Part A preprocessing pipeline** and not spawn a second
+tokenizer. I did this by importing `process_documents` / `preprocess_text`
+from `preprocess.py` and reading positions directly off each document's
+processed token list `document.tokens` via `enumerate` — the very list Part A
+counted tf/df from. To make the reuse provable rather than assumed, I added
+`verify_consistency_with_inverted_index`, which asserts the positional index
+has the **same vocabulary, same df, and same tf** as `output/inverted_index.json`;
+it passes (124 stems, identical df/tf). I also added
+`verify_positions_match_tokens`, which asserts every stored position `p`
+recovers its own term via `document.tokens[p]` — the direct proof that
+positions are processed-stream indices, not character offsets.
+
+**Position convention (the one explicit decision):** positions are
+**zero-based indices into the processed token stream** (after lowercase →
+punctuation split → stopword removal → Porter stem). I picked this because the
+processed list *is* what the pipeline emits, so `document.tokens[p]` recovers
+the token with no off-by-one translation, and zero-based means the stored
+number is literally the Python list index. Indexing, phrase matching,
+proximity matching, and displayed positions therefore all share one coordinate
+system. I explicitly do **not** use raw character offsets and do **not**
+recompute positions from the original string after stemming/stopword removal,
+because after those steps raw offsets no longer align with the indexed tokens.
+Adjacency is defined on the processed stream, so a dropped stopword between two
+surface words still leaves them adjacent (positions differ by 1).
+
+**Phrase search** normalizes the phrase with the same pipeline, intersects the
+candidate documents, and for an n-term phrase keeps only positions `p` where
+term `i` sits at `p+i` for all `i`. It returns the actual consecutive positions
+as evidence. I handled the required edge cases: empty/stopword-only phrase →
+`[]`; any unknown term → `[]`; one-term phrase → each occurrence; repeated
+terms like `cotton cotton` probed at `p` and `p+1`.
+
+**Proximity search** takes `ordered` (default): `0 < p2 - p1 <= k`, and
+unordered: `0 < |p1 - p2| <= k`, returning the satisfying `(p1, p2)` pairs. I
+documented that **`k` is the maximum positional difference, not the count of
+intervening tokens** (so `WITHIN/1` = adjacency, `WITHIN/3` = up to two tokens
+between).
+
+Testing against the assignment examples: `cotton shirt`, `stretch denim`,
+`festive wear`, `winter wear`, and `regular fit` all return true consecutive
+matches (e.g. `cotton shirt` at `[14, 15]` in D001; `regular fit` at `[1, 2]`
+in D003). The proximity examples `cotton WITHIN/3 shirt`, `stretch WITHIN/4
+denim`, and `winter WITHIN/3 wear` all return real position pairs, while
+`festive WITHIN/4 kurta` returns **nothing** — I left that honest rather than
+fabricating a hit, since the corpus is synthetic. Crucially, `cotton shirt`
+gives a clean co-occurrence-vs-phrase counterexample: **15** documents contain
+both `cotton` and `shirt` somewhere, but only **10** contain the adjacent
+phrase — e.g. **D011** ("...Cotton Shirt..." title stems put `shirt` at
+`[3, 8, 13]` and a later `cotton` at `[11]`, never adjacent), so a boolean/VSM
+"both terms present" test would wrongly return it while phrase search correctly
+excludes it. Phrase and proximity search operate purely on the positional
+index; they never call the VSM. `output/positional_index.json` is regenerated
+deterministically (rebuilding twice yields byte-identical JSON). I did not
+touch the Part B `lnc.ltc` mathematics.

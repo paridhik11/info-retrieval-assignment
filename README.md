@@ -89,9 +89,108 @@ The pure VSM baseline (`query_vsm(query_string, top_k=10)`) is kept
 independent so it stays available for comparison against the later novelty
 reranker.
 
+## Positional retrieval — phrase & proximity (Part C)
+
+`src/positional_index.py` extends Part A's postings with **term positions** to
+support **exact phrase search** and **ordered/unordered proximity
+(`WITHIN/k`) search**. It **reuses the exact same preprocessing pipeline** as
+Part A — it imports `process_documents` / `preprocess_text` from
+`preprocess.py` and reads positions straight off the processed token list, so
+there is no second tokenizer. `verify_consistency_with_inverted_index` asserts
+the positional index has the **same vocabulary, df, and tf** as
+`output/inverted_index.json`.
+
+### Index structure
+
+```
+{
+  "term": {
+    "df": <number of documents containing the term>,
+    "postings": {
+      "D001": { "tf": <occurrences in doc>, "positions": [p1, p2, ...] },
+      ...
+    }
+  }
+}
+```
+
+`df` = documents containing the stem, `tf` = occurrences in the processed
+document, `positions` = every position of the stem (sorted). Vocabulary keys
+and posting docIDs are sorted, so `output/positional_index.json` is
+deterministic.
+
+### Position convention
+
+Positions are **zero-based indices into the processed token stream** (the list
+produced *after* lowercasing → punctuation split → stopword removal → Porter
+stemming). `positions[i] = p` means `document.tokens[p]` is that term.
+
+*Why this convention:* the processed token list **is** the sequence the
+indexing pipeline emits, so `document.tokens[p]` recovers the token at
+position `p` with no off-by-one translation, and zero-based means the stored
+position is literally the Python list index. Indexing, phrase matching,
+proximity matching, and displayed positions therefore all use the **one
+identical coordinate system**. We deliberately do **not** use raw character
+offsets and do **not** recompute positions from the original string after
+stemming/stopword removal — after those steps raw offsets no longer line up
+with the indexed tokens. Adjacency is defined on the *processed* stream: two
+terms are adjacent iff their positions differ by exactly 1, even if an English
+stopword sat between them in the surface text.
+
+### Phrase matching (`phrase_search(phrase)`)
+
+The phrase is normalized with the **same** pipeline. For an n-term phrase the
+result is only documents where the normalized terms occur in **exact query
+order at consecutive positions** — some position `p` holds term 0, `p+1` holds
+term 1, …, `p+n-1` holds term n-1. Mere co-occurrence of both terms in a
+document is **not** a match. Each result returns the evidence:
+
+```
+[ { "docID": "D...", "matches": [[p, p+1, ...], ...] } ]
+```
+
+Edge cases handled: empty / stopword-only phrase → `[]`; any unknown term →
+`[]` (phrase impossible); one-term phrase → every occurrence position;
+repeated terms (e.g. `cotton cotton`) probed at `p` and `p+1`.
+
+### Proximity matching (`proximity_search(term1, term2, k, ordered=True)`)
+
+`k` is the **maximum positional difference** between the two matched tokens —
+**not** the number of intervening tokens. So `cotton WITHIN/3 shirt` (ordered)
+keeps pairs with `0 < p2 - p1 <= 3` (adjacency is the `k = 1` case; `k = 3`
+allows up to two tokens in between). Unordered keeps `0 < |p1 - p2| <= k`.
+Every result carries the actual satisfying position pair(s):
+
+```
+[ { "docID": "D...", "pairs": [[p1, p2], ...] } ]
+```
+
+### Ordinary VSM vs positional retrieval
+
+- **VSM (`lnc.ltc`, Part B)** is a **bag-of-words** model: a document is a
+  multiset of term weights and word *order is discarded*. It answers *"how
+  similar in term proportions is this document to the query?"* and ranks by
+  cosine. It cannot tell `cotton shirt` from `shirt … cotton` — both raise the
+  same term weights.
+- **Positional retrieval (Part C)** keeps each term's **position list** and
+  answers a *structural* question: *"do these terms occur adjacently
+  (phrase) / within k positions (proximity)?"* It is boolean evidence, not a
+  score, and returns the exact positions that satisfy the constraint.
+- Concretely in this corpus, `D011` contains **both** `cotton` and `shirt`
+  (so VSM/boolean co-occurrence would return it) but never as the adjacent
+  phrase `cotton shirt`, so `phrase_search("cotton shirt")` correctly
+  **excludes** it — demonstrating the two are not equivalent.
+
+```bash
+python src/positional_index.py   # builds the index, runs phrase/proximity demos
+```
+
 ## Status
 
 Part A is in place: XML-style corpus parsing, a documented English stopword
 policy with Porter stemming, and a deterministic inverted index (df + tf
 postings) over all 100 documents. Part B is in place: exact `lnc.ltc` cosine
-ranked retrieval in `src/vsm.py`. Parts C–E are still pending.
+ranked retrieval in `src/vsm.py`. Part C is in place: a positional index with
+exact phrase search and ordered/unordered `WITHIN/k` proximity search in
+`src/positional_index.py` (`output/positional_index.json`). Parts D–E are
+still pending.
