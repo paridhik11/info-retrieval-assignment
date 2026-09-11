@@ -56,13 +56,19 @@ except Exception as exc:  # pragma: no cover - defensive UI guard
     proximity_search = None  # type: ignore[assignment]
     _IMPORT_ERROR = exc
 
-# The novelty re-ranker (Part D+) is optional. If it is not implemented yet we
-# still show the control, but transparently fall back to the plain VSM ranking.
+# The novelty re-ranker (proximity-aware re-ranking) is optional. If it cannot
+# be imported we still show the control, but transparently fall back to the
+# plain lnc.ltc VSM ranking. The UI only calls the public entry points; it does
+# not need to know how the proximity algorithm works internally.
 try:
-    from reranker import rerank_results as _rerank_results  # type: ignore
+    from reranker import (  # type: ignore
+        DEFAULT_ALPHA,
+        compare_baseline_and_reranked,
+    )
     _RERANKER_AVAILABLE = True
 except Exception:
-    _rerank_results = None  # type: ignore[assignment]
+    compare_baseline_and_reranked = None  # type: ignore[assignment]
+    DEFAULT_ALPHA = 0.15  # type: ignore[assignment]
     _RERANKER_AVAILABLE = False
 
 
@@ -146,18 +152,19 @@ def render_free_text_mode(metadata: dict) -> None:
     )
 
     apply_novelty = st.checkbox(
-        "Apply novelty re-ranking",
+        "Use proximity-aware re-ranking",
         value=False,
         help=(
-            "Re-orders results using positional evidence on top of the "
-            "cosine ranking. Connects to the re-ranker when it is available."
+            "Novelty: re-orders the lnc.ltc candidate set using positional "
+            "proximity — documents where the query terms occur close together "
+            "are rewarded. It is a controlled secondary signal (small alpha) "
+            "on top of the classical cosine ranking, not a replacement for it."
         ),
     )
     if apply_novelty and not _RERANKER_AVAILABLE:
         st.info(
-            "Novelty re-ranking is not available yet — showing the plain "
-            "`lnc.ltc` cosine ranking. This control will activate once the "
-            "re-ranker is implemented."
+            "Proximity-aware re-ranking is unavailable in this environment — "
+            "showing the plain `lnc.ltc` cosine ranking instead."
         )
 
     search = st.button("Search", type="primary", key="free_text_search")
@@ -168,6 +175,15 @@ def render_free_text_mode(metadata: dict) -> None:
         st.warning("Please enter a query to search.")
         return
 
+    use_novelty = apply_novelty and _RERANKER_AVAILABLE
+    if use_novelty:
+        _render_reranked_results(query, metadata)
+    else:
+        _render_baseline_results(query, metadata)
+
+
+def _render_baseline_results(query: str, metadata: dict) -> None:
+    """Plain lnc.ltc cosine ranking (Part B baseline, unchanged)."""
     try:
         results = query_vsm(query, top_k=10)
     except FileNotFoundError:
@@ -179,12 +195,6 @@ def render_free_text_mode(metadata: dict) -> None:
     except Exception as exc:  # pragma: no cover - defensive UI guard
         st.error(f"Search failed: {exc}")
         return
-
-    if apply_novelty and _RERANKER_AVAILABLE and _rerank_results is not None:
-        try:
-            results = _rerank_results(query, results)
-        except Exception as exc:  # pragma: no cover - defensive UI guard
-            st.warning(f"Re-ranking unavailable ({exc}); showing cosine order.")
 
     if not results:
         st.info(
@@ -207,8 +217,97 @@ def render_free_text_mode(metadata: dict) -> None:
             }
         )
 
-    st.success(f"Showing top {len(rows)} result(s).")
+    st.success(f"Showing top {len(rows)} result(s) — baseline `lnc.ltc` ranking.")
     st.dataframe(rows, hide_index=True, use_container_width=True)
+
+
+def _render_reranked_results(query: str, metadata: dict) -> None:
+    """Novelty: proximity-aware re-ranking, with baseline comparison."""
+    try:
+        comparison = compare_baseline_and_reranked(query, top_k=10)  # type: ignore[misc]
+    except FileNotFoundError:
+        st.error(
+            "Index files were not found. Please build the indexes first:\n\n"
+            "`python src/index_builder.py`"
+        )
+        return
+    except Exception as exc:  # pragma: no cover - defensive UI guard
+        st.warning(f"Re-ranking failed ({exc}); showing plain cosine order.")
+        _render_baseline_results(query, metadata)
+        return
+
+    reranked = comparison["reranked"]
+    if not reranked:
+        st.info(
+            "No matching documents. Every query term may be unknown to the "
+            "corpus or filtered out as a stop word — try different terms."
+        )
+        return
+
+    alpha = comparison["alpha"]
+    baseline_order = comparison["baseline_order"]
+
+    # Map each docID to its baseline rank so we can show how it moved.
+    baseline_rank = {doc_id: i + 1 for i, doc_id in enumerate(baseline_order)}
+
+    rows = []
+    for rank, row in enumerate(reranked, start=1):
+        doc_id = row["docID"]
+        prev = baseline_rank.get(doc_id)
+        if prev is None:
+            movement = "new"
+        elif prev == rank:
+            movement = "—"
+        else:
+            movement = f"▲{prev - rank}" if prev > rank else f"▼{rank - prev}"
+        cp = row["closest_pair"]
+        closest = (
+            f"{cp['terms'][0]}/{cp['terms'][1]} (gap {cp['gap']})" if cp else "—"
+        )
+        rows.append(
+            {
+                "Rank": rank,
+                "Doc ID": doc_id,
+                "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
+                "Product title": row.get("title") or _meta_field(metadata, doc_id, "title"),
+                "Cosine score": f"{row['cosine_score']:.4f}",
+                "Proximity bonus": f"{row['proximity_bonus']:.3f}",
+                "Final score": f"{row['final_score']:.4f}",
+                "Closest pair": closest,
+                "Δ vs baseline": movement,
+            }
+        )
+
+    if comparison["changed"]:
+        st.success(
+            f"Proximity-aware re-ranking (alpha = {alpha}) — the ordering "
+            "**changed** relative to the baseline. `final_score = cosine + "
+            "alpha × proximity_bonus`."
+        )
+    else:
+        st.info(
+            f"Proximity-aware re-ranking (alpha = {alpha}) — the proximity "
+            "signal did **not** change the top-10 ordering for this query "
+            "(reported honestly). `final_score = cosine + alpha × "
+            "proximity_bonus`."
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+
+    with st.expander("Compare baseline vs. re-ranked ordering"):
+        reranked_order = comparison["reranked_order"]
+        compare_rows = []
+        for i in range(max(len(baseline_order), len(reranked_order))):
+            base = baseline_order[i] if i < len(baseline_order) else "—"
+            new = reranked_order[i] if i < len(reranked_order) else "—"
+            compare_rows.append(
+                {
+                    "Rank": i + 1,
+                    "Baseline (cosine only)": base,
+                    "Re-ranked (cosine + proximity)": new,
+                    "Changed": "yes" if base != new else "",
+                }
+            )
+        st.dataframe(compare_rows, hide_index=True, use_container_width=True)
 
 
 # --------------------------------------------------------------------------

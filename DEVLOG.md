@@ -205,3 +205,71 @@ launched the app headless to confirm it boots and serves with no runtime
 errors. I documented the `streamlit run src/app.py` command and the NLTK
 stop-word data note in the README. I did not modify any Part B/C module to
 simplify the UI.
+
+## Entry 6 — Novelty: proximity-aware re-ranking
+
+I implemented the novelty in `src/reranker.py`. It is a deliberately
+**lightweight, explainable** enhancement that *extends* the required classical
+system rather than replacing it: it introduces no LLMs, embeddings, neural
+networks, vector databases, semantic/external APIs, pretrained models, BM25, or
+any different ranking algorithm. It reuses only what the assignment already
+built — the `lnc.ltc` VSM (Part B) and the positional index (Part C). I keep
+calling it a classical IR extension using positional evidence, never "AI",
+"semantic search", or "machine learning".
+
+**Motivation.** The `lnc.ltc` VSM is a bag-of-words model: it measures term
+importance and vector similarity but discards word order, so it cannot tell
+whether two query terms sit next to each other or at opposite ends of a
+document. The positional index already knows *where* terms occur, so I use that
+as an additional signal *after* the baseline retrieval.
+
+**Algorithm.** (1) Candidate retrieval — I take the top `candidate_k` (default
+20) documents from `query_vsm`, the VSM candidate set only, never arbitrary
+documents. (2) Query normalization — I use the exact same `preprocess_text`
+pipeline and drop unknown terms (they have no positional postings); if fewer
+than two distinct known terms remain, the proximity bonus is zero (I do not
+fabricate evidence). (3) Pairwise proximity — for every pair of distinct known
+terms that both occur in a candidate, I take the minimum absolute positional
+gap and add `1 / (1 + min_gap)`; a non-co-occurring pair contributes 0. (I find
+the minimum gap with a two-pointer merge over the sorted position lists, so it
+is O(len_a + len_b) rather than the naive product.) (4) Combine —
+`final_score = cosine_score + alpha * proximity_bonus`. (5) Rank — sort by
+`final_score` descending, `docID` ascending for ties, return the top 10.
+
+**Why alpha is small.** `alpha` (default 0.15, a real parameter, not buried in
+the loop) scales the bonus so it only *nudges* documents the VSM already
+considers relevant — it must never overwhelm the required cosine similarity. I
+verified this both ways: `alpha = 0` reproduces the exact baseline ordering,
+and the default `0.15` reshuffles only near-tied candidates.
+
+**Crucially, I did not touch the `lnc.ltc` mathematics.** `git diff` shows only
+`src/reranker.py` and `src/app.py` changed; `vsm.py`, `positional_index.py`, and
+`preprocess.py` are byte-for-byte unchanged, and `python src/vsm.py` still
+hand-verifies `denim` (df 15, top D023 = 0.2157). The baseline `query_vsm`
+stays independently available for comparison via
+`compare_baseline_and_reranked`, which reports `changed` honestly.
+
+**Real evidence (no fabricated improvements).** I scanned legitimate multi-term
+corpus queries. The corpus is heavily templated, so many queries (e.g. `cotton
+shirt`) leave the top-10 ordering unchanged — the proximity bonus is uniform
+across the top group — and I report that honestly rather than forcing a change.
+But 82 two-term corpus queries *do* change the ranking. Two clean examples:
+`cotton denim` — baseline ranks `D043` (cosine 0.2060) above `D053` (cosine
+0.1787), but in `D053` *cotton* and *denim* are adjacent (gap 1, bonus 0.5)
+while in `D043` they never co-occur (bonus 0), so with alpha 0.15 `D053`'s final
+0.2537 overtakes 0.2060 and it rises above the higher-cosine non-co-occurring
+docs. `regular winter` — documents where the two terms occur closer together
+(gap 13) rise above near-tied documents where they are farther apart (gap 23).
+Each result exposes `cosine_score`, `proximity_bonus`, `final_score`, and the
+`closest_pair` (term pair + gap) so the ranking is explainable in a viva.
+
+**UI.** I wired a `"Use proximity-aware re-ranking"` checkbox into the free-text
+mode. Unchecked → baseline `lnc.ltc`. Checked → the reranker, showing the
+cosine score, proximity bonus, final score, final rank, each document's
+movement versus the baseline, and an expandable baseline-vs-reranked ordering
+comparison. The UI only calls the public entry points
+(`rerank_with_proximity` / `compare_baseline_and_reranked`) and does not know
+the algorithm internals. I updated the README with a plainly-worded "Novelty:
+Proximity-Aware Re-Ranking" section that describes it accurately as a
+project-level enhancement and explicitly does not claim it is new research or a
+universal improvement.

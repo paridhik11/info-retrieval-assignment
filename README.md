@@ -208,9 +208,9 @@ Two primary modes:
 
 - **Free-text search** — ranked retrieval via `query_vsm()`. Shows the top 10
   results in a table (rank, docID, category, product title, and cosine score
-  to 4 decimal places) in the exact required order. An optional novelty
-  re-ranking control is present and will connect to the re-ranker once it is
-  implemented (until then it transparently falls back to the cosine ranking).
+  to 4 decimal places) in the exact required order. An optional
+  **"Use proximity-aware re-ranking"** toggle switches to the novelty
+  re-ranker (see below); unchecked, it uses the plain `lnc.ltc` baseline.
 - **Phrase / proximity search** — a selector between **exact phrase search**
   (`phrase_search()`) and **proximity search** (`proximity_search()`, with
   term 1 / term 2 / `k` / ordered-or-unordered controls). Both display the
@@ -240,6 +240,85 @@ If your environment blocks that automatic download, fetch it once beforehand:
 python -c "import nltk; nltk.download('stopwords')"
 ```
 
+## Novelty: Proximity-Aware Re-Ranking
+
+`src/reranker.py` adds a **lightweight, explainable retrieval enhancement**
+that *extends* the classical system rather than replacing it. It uses only
+information already produced by the required parts — the **`lnc.ltc` VSM**
+(Part B) and the **positional index** (Part C). It introduces **no** LLMs,
+embeddings, neural networks, vector databases, semantic/external search APIs,
+pretrained models, BM25, or any different ranking algorithm. It is a classical
+IR extension that uses positional evidence — not "AI", "semantic search", or
+"machine learning".
+
+**Why proximity is a useful signal.** The baseline `lnc.ltc` VSM is a
+*bag-of-words* model: it weighs term importance and vector similarity but
+discards word order, so it cannot tell whether two query terms occur *next to
+each other* or *at opposite ends* of a document. Two documents can earn nearly
+identical cosine scores while one packs the query terms tightly together
+(usually the better match) and the other scatters them. The positional index
+already knows *where* every term occurs, so we can reward candidates in which
+the query terms co-occur closely.
+
+**How it works (plain language).**
+
+1. **Baseline** — `lnc.ltc` ranks documents using weighted term similarity
+   (cosine). This is left completely unchanged (`query_vsm` is *called*, never
+   modified) so the two rankings can be compared.
+2. **Positions** — the positional index knows where each query term occurs in
+   each document.
+3. **Proximity** — for every pair of *distinct, known* query terms that both
+   occur in a candidate, we take the minimum absolute positional gap and add
+   `pair_bonus = 1 / (1 + min_gap)`; `proximity_bonus` is the sum over all
+   valid pairs. Closer terms → larger bonus; a pair that never co-occurs
+   contributes `0` (no fabricated evidence).
+4. **Re-rank the VSM candidate set only** — we take the top `candidate_k` (20)
+   VSM candidates and re-order them; we never pull in arbitrary documents
+   outside that set.
+5. **Preserve the baseline** — `final_score = cosine_score + alpha × proximity_bonus`,
+   sorted by `final_score` descending, `docID` ascending for ties. The classical
+   lexical score stays the primary ranking force.
+6. **`alpha`** (default `0.15`, a configurable parameter) controls how strongly
+   proximity affects ranking. It is kept **small on purpose** so the positional
+   signal is a *controlled secondary signal* that only nudges near-tied
+   documents rather than overwhelming the required `lnc.ltc` similarity. Setting
+   `alpha = 0` recovers the exact baseline ordering.
+
+This is a **project-level retrieval enhancement** combining lexical weighting
+from `lnc.ltc` with positional proximity information. It is **not** a new
+research algorithm and is **not** claimed to universally improve retrieval —
+for some queries the proximity signal changes nothing, which the system reports
+honestly.
+
+Public API (the UI does not need to know the internals):
+
+```python
+rerank_with_proximity(query_string, top_k=10, candidate_k=20, alpha=0.15)
+compare_baseline_and_reranked(query_string, top_k=10, candidate_k=20, alpha=0.15)
+```
+
+Each re-ranked result carries enough to *explain* the ranking in a viva:
+`docID`, `title`, `category`, `cosine_score`, `proximity_bonus`, `final_score`,
+and the `closest_pair` (which term pair and gap best explains the bonus).
+
+```bash
+python src/reranker.py   # baseline vs. re-ranked comparison on real corpus queries
+```
+
+**Worked example (`cotton denim`).** The baseline ranks `D043` (cosine
+`0.2060`) above `D053` (cosine `0.1787`). But in `D053` the words *cotton* and
+*denim* occur adjacently (gap 1 → bonus `0.5`) while in `D043` they never
+co-occur (bonus `0`). With `alpha = 0.15`, `D053`'s final score `0.2537`
+overtakes `D043`'s `0.2060`, so `D053` rises above the three higher-cosine but
+non-co-occurring documents — exactly the behavior the proximity signal is meant
+to add.
+
+In the **Free-text search** UI, tick **"Use proximity-aware re-ranking"** to
+switch from the baseline to the novelty. When enabled it shows the baseline
+cosine score, the proximity bonus, the final score, the final rank, each
+document's movement versus the baseline, and a compact baseline-vs-reranked
+ordering comparison.
+
 ## Status
 
 Part A is in place: XML-style corpus parsing, a documented English stopword
@@ -249,5 +328,8 @@ ranked retrieval in `src/vsm.py`. Part C is in place: a positional index with
 exact phrase search and ordered/unordered `WITHIN/k` proximity search in
 `src/positional_index.py` (`output/positional_index.json`). Part D is in
 place: a Streamlit search interface (`src/app.py`) with free-text ranked
-retrieval and a phrase/proximity mode that surfaces matching positions. Part E
-(the evaluation harness) is still pending.
+retrieval and a phrase/proximity mode that surfaces matching positions. The
+**novelty** — proximity-aware re-ranking (`src/reranker.py`) — is in place and
+wired into the free-text UI behind a toggle, keeping the `lnc.ltc` baseline
+available unchanged for comparison. Part E (the evaluation harness) is still
+pending.
