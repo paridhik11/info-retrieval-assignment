@@ -1,0 +1,5 @@
+# CSD358 IR Assignment 1 — dependencies (kept minimal)
+# Core IR logic relies on the Python standard library.
+
+nltk>=3.8      # Porter stemmer + standard English stop-word list
+streamlit>=1.30  # simple search interface (Part D)
