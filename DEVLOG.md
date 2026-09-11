@@ -22,3 +22,33 @@ not implemented any IR logic yet. I kept dependencies deliberately minimal
 (`nltk` for Porter stemming and stop-words, `streamlit` for the UI) and wrote
 the README, requirements, and `.gitignore`. Next I will implement Part A: the
 pre-processing pipeline and the inverted index.
+
+## Entry 2 — Part A: preprocessing and inverted index
+
+I implemented the corpus parser and the shared text pipeline in
+`src/preprocess.py`, then built the inverted index in `src/index_builder.py`.
+
+I parsed `data/corpus_100.txt` with ElementTree (wrapping the file in a
+temporary root because it is a sequence of `<DOC>` blocks, not a rooted XML
+document) so I would not depend on line offsets. TITLE + TEXT are the
+indexable content; CATEGORY is kept only as display metadata, because the
+title already names the garment type and indexing the category tag would
+inflate tf for every document in that category.
+
+The pipeline is lowercase → replace punctuation with spaces → whitespace
+tokenize → NLTK English stopwords → Porter stem, in that order. I used the
+stock English stopword list with no clothing-specific extras: terms such as
+wear, fit, size, cotton, denim, shirt, kurta, dress, winter, and festive are
+not English function words, so they stay searchable. I did hit one
+stopword collision I chose not to special-case: size letters `s` and `m`
+are in the NLTK list (from contractions), so they disappear, while `size`,
+`l`, `xl`, and `xxl` remain. Porter also stems some product words more
+aggressively than a clothing lexicon would (`festive` → `festiv`,
+`leggings` → `leg`); I kept Porter as specified rather than adding
+exceptions.
+
+Running against the real corpus gave **N = 100**, no duplicate DOCIDs, and a
+vocabulary of **124** stems. Spot-checks of cotton / denim / kurta matched
+hand counts of stemmed TITLE+TEXT tokens (df is the posting-list length, not
+collection frequency). Rebuilding the index twice produced identical JSON.
+Outputs: `output/inverted_index.json` and `output/doc_metadata.json`.
