@@ -52,3 +52,39 @@ vocabulary of **124** stems. Spot-checks of cotton / denim / kurta matched
 hand counts of stemmed TITLE+TEXT tokens (df is the posting-list length, not
 collection frequency). Rebuilding the index twice produced identical JSON.
 Outputs: `output/inverted_index.json` and `output/doc_metadata.json`.
+
+## Entry 3 — Part B: `lnc.ltc` Vector Space Model
+
+I implemented ranked retrieval in `src/vsm.py` using the exact `lnc.ltc`
+weighting scheme required by the assignment, spelled out by hand rather than
+delegated to any TF-IDF/BM25/embedding library. Document weights are
+`1 + log10(tf)` with **no IDF** (IDF is a collection-level property, applied
+exactly once on the query side to avoid squaring the boost); query weights are
+`(1 + log10(tf_query)) * log10(N / df)` with **N = 100** fixed and `df` read
+straight from the inverted index. Both the document and query vectors are
+cosine-normalized and the score is their dot product — I do not divide by the
+norms a second time.
+
+For efficiency I precompute every document's term weights and its cosine norm
+once at construction time from the inverted index, then each query only scores
+the **candidate documents** obtained by unioning the postings lists of the
+query terms (the only documents that can have a non-zero cosine). Results are
+the top 10, sorted by decreasing cosine with an explicit increasing-docID
+secondary sort so ranking never depends on dict/set iteration order.
+
+I reused the Part A `preprocess_text` pipeline verbatim for queries, so query
+terms and document terms are the same stems. I handled the edge cases
+deterministically: empty / punctuation-only / all-stopword queries and queries
+whose every term is outside the corpus return an empty list cleanly; unknown
+terms carry no `df` and contribute no score; repeated words and words that stem
+to the same token simply raise that term's query `tf`.
+
+I verified the math by hand for the single-term query `denim`: `df = 15`, so
+`idf = log10(100/15) = 0.8239`; a one-term query normalizes to weight `1.0`, so
+each document's score reduces to `(1 + log10(tf)) / doc_norm`. My independent
+recomputation matched `query_vsm` exactly (top document `D023`, score
+`0.2157`). Representative queries (`cotton kurta`, `denim jeans`, `winter
+jacket for men`) return sensible category-consistent top-10 lists, and the
+score ties (e.g. structurally identical `D034`/`D094`) break by ascending
+docID as intended. The pure VSM baseline is kept independent so it remains
+available for the later novelty-reranker comparison.
