@@ -40,9 +40,20 @@ pip install -r requirements.txt
 python src/index_builder.py
 ```
 
-The first command installs NLTK (and later Streamlit). The second parses the
+The first command installs NLTK and Streamlit. The second parses the
 100-document corpus, writes `output/inverted_index.json`, and writes
 `output/doc_metadata.json` for later modules.
+
+### NLTK data
+
+The pipeline needs the NLTK **English stop-word list**. `preprocess.py`
+downloads it automatically on first use (`ensure_nltk_stopwords()`), so no
+manual step is normally required. If your environment blocks that automatic
+download, fetch it once by hand:
+
+```bash
+python -c "import nltk; nltk.download('stopwords')"
+```
 
 ## Ranked retrieval — exact `lnc.ltc` (Part B)
 
@@ -185,6 +196,50 @@ Every result carries the actual satisfying position pair(s):
 python src/positional_index.py   # builds the index, runs phrase/proximity demos
 ```
 
+## Search interface (Part D)
+
+`src/app.py` is a small **Streamlit** app — a clean demonstration of the IR
+system, not a full website. It is a thin layer over the existing modules: it
+imports `query_vsm` (Part B) and `phrase_search` / `proximity_search`
+(Part C) and never re-implements preprocessing, indexing, or scoring. Indexes
+and metadata are loaded once (cached) rather than rebuilt per interaction.
+
+Two primary modes:
+
+- **Free-text search** — ranked retrieval via `query_vsm()`. Shows the top 10
+  results in a table (rank, docID, category, product title, and cosine score
+  to 4 decimal places) in the exact required order. An optional novelty
+  re-ranking control is present and will connect to the re-ranker once it is
+  implemented (until then it transparently falls back to the cosine ranking).
+- **Phrase / proximity search** — a selector between **exact phrase search**
+  (`phrase_search()`) and **proximity search** (`proximity_search()`, with
+  term 1 / term 2 / `k` / ordered-or-unordered controls). Both display the
+  actual matching positions / satisfying position pairs, so the positional
+  index is visibly in use.
+
+The app also includes an accurate `lnc.ltc` explainer and handles empty
+queries, unknown terms, no results, invalid `k`, and missing index files
+gracefully (it never crashes on bad input).
+
+### Run it
+
+```bash
+pip install -r requirements.txt   # installs streamlit (and nltk)
+python src/index_builder.py       # builds output/inverted_index.json + doc_metadata.json
+streamlit run src/app.py          # launches the interface at http://localhost:8501
+```
+
+### NLTK data
+
+The pipeline uses the NLTK **English stop-word list** plus the Porter stemmer.
+The stop-word corpus is downloaded automatically on first use by
+`preprocess.ensure_nltk_stopwords()`, so no manual step is normally required.
+If your environment blocks that automatic download, fetch it once beforehand:
+
+```bash
+python -c "import nltk; nltk.download('stopwords')"
+```
+
 ## Status
 
 Part A is in place: XML-style corpus parsing, a documented English stopword
@@ -192,5 +247,7 @@ policy with Porter stemming, and a deterministic inverted index (df + tf
 postings) over all 100 documents. Part B is in place: exact `lnc.ltc` cosine
 ranked retrieval in `src/vsm.py`. Part C is in place: a positional index with
 exact phrase search and ordered/unordered `WITHIN/k` proximity search in
-`src/positional_index.py` (`output/positional_index.json`). Parts D–E are
-still pending.
+`src/positional_index.py` (`output/positional_index.json`). Part D is in
+place: a Streamlit search interface (`src/app.py`) with free-text ranked
+retrieval and a phrase/proximity mode that surfaces matching positions. Part E
+(the evaluation harness) is still pending.

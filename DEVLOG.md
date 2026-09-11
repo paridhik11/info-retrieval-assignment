@@ -147,3 +147,61 @@ excludes it. Phrase and proximity search operate purely on the positional
 index; they never call the VSM. `output/positional_index.json` is regenerated
 deterministically (rebuilding twice yields byte-identical JSON). I did not
 touch the Part B `lnc.ltc` mathematics.
+
+## Entry 5 — Part D: Streamlit search interface
+
+I implemented the user-facing search app in `src/app.py`. The guiding
+principle was that the UI is a **thin presentation layer**: it imports
+`query_vsm` (Part B) and `phrase_search` / `proximity_search` (Part C) and
+does not re-implement any preprocessing, indexing, scoring, or phrase/proximity
+logic. I deliberately did not duplicate the pipeline in the app — keeping one
+source of truth in `src/` was the whole point of the earlier modular layout.
+
+The app has the two required primary modes, chosen with a radio at the top:
+
+- **Free-text search** — a title, a short description, a query box, a Search
+  button, and an optional novelty re-ranking checkbox. It calls
+  `query_vsm(query, top_k=10)` and renders the top 10 in a clean table with
+  rank, docID, category, product title, and the cosine score formatted to 4
+  decimal places, in the exact order the VSM returns (I only enumerate for the
+  rank column; I never re-sort). No raw dicts are shown. The novelty control
+  tries to import `reranker.rerank_results`; since Part D+ isn't implemented
+  yet, `_RERANKER_AVAILABLE` is `False`, so the control is present but
+  transparently falls back to the plain cosine ranking with an info note. This
+  keeps the wiring ready for the next step without faking behavior.
+- **Phrase / proximity search** — a sub-selector between **exact phrase
+  search** (one input → `phrase_search`) and **proximity search** (term 1,
+  term 2, a numeric `k`, an ordered/unordered radio → `proximity_search`).
+  Both display the **actual matching positions / satisfying position pairs**,
+  which is the explicit assignment requirement that the positional index be
+  visibly in use. I render positions as readable strings, never as Python
+  lists-in-dicts.
+
+I added an accurate `lnc.ltc` explainer in an expander: documents use log-tf
+with no idf, queries use log-tf × idf, both cosine-normalized, idf applied once
+on the query side, N = 100. I kept it truthful rather than the common
+hand-wave that "tf-idf is applied to both sides".
+
+Efficiency: metadata is loaded through `st.cache_data` and the VSM model /
+positional index keep their existing module-level lazy caches, so indexes load
+once per session instead of rebuilding the corpus on every click. Positional
+results only carry docIDs, so I look up category/title from
+`output/doc_metadata.json` for display, degrading to docID-only if metadata is
+absent.
+
+Error handling was a focus: empty query, empty phrase, or missing proximity
+terms produce warnings; `k < 1` is rejected; unknown terms and no-result cases
+show a friendly info message; a missing index file shows a "build the indexes"
+error instead of a stack trace. The IR-module imports are wrapped so a broken
+environment surfaces one clean error rather than a blank page.
+
+I installed Streamlit (already listed in `requirements.txt`), byte-compiled the
+app, and ran a smoke test driving the same functions the UI calls: `cotton
+kurta` returns the expected Kurta top-10 (D034/D094 tied at 0.2467, broken by
+docID); `cotton shirt` phrase search returns consecutive-position matches
+(e.g. D001 `[14, 15]`); `cotton WITHIN/3 shirt` returns real pairs; and all
+edge cases (empty, unknown term, `k = 0`) return `[]` without crashing. I also
+launched the app headless to confirm it boots and serves with no runtime
+errors. I documented the `streamlit run src/app.py` command and the NLTK
+stop-word data note in the README. I did not modify any Part B/C module to
+simplify the UI.
