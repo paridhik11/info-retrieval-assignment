@@ -27,9 +27,11 @@ src/                  IR implementation modules
   positional_index.py Part C: positional index + phrase/proximity search
   reranker.py         Combines VSM ranking with positional evidence
   app.py              Part D: Streamlit interface
+  evaluate.py         Part E: reproducible evaluation + analysis harness
 tests/
-  run_evaluation.py   Part E: mandatory evaluation queries
-output/               generated indexes, test results, and analysis
+  test_ir.py          Part E: behavioural pytest suite (36 tests)
+  run_evaluation.py   Part E: thin wrapper that calls src/evaluate.py
+output/               generated indexes, evaluation results, and analysis
 screenshots/          application / query screenshots
 ```
 
@@ -319,6 +321,100 @@ cosine score, the proximity bonus, the final score, the final rank, each
 document's movement versus the baseline, and a compact baseline-vs-reranked
 ordering comparison.
 
+## Evaluation & analysis (Part E)
+
+`src/evaluate.py` is the complete, reproducible evaluation harness. It **only
+drives** the retrieval code that already exists — `preprocess_text`,
+`query_vsm`/`VectorSpaceModel` (Part B), `phrase_search`/`proximity_search`
+(Part C), and `rerank_with_proximity`/`compare_baseline_and_reranked` (the
+novelty). It re-implements none of them. Every docID, score, and position in
+the generated outputs is computed at run time; only the query *strings* are
+declared, and the positional-analysis cases are **discovered** from the live
+positional index, not hard-coded.
+
+### Run it
+
+```bash
+python -m src.evaluate        # from the repo root (preferred)
+# or
+python src/evaluate.py        # equivalent
+# or
+python tests/run_evaluation.py  # thin wrapper, same result
+```
+
+Each run regenerates two files under `output/` (overwriting deterministically):
+
+- **`output/evaluation_results.json`** — machine-readable results with clearly
+  separated sections: `free_text_queries`, `phrase_queries`,
+  `proximity_queries`, `unknown_term_query`, `reranking_comparisons`, and
+  `positional_analysis` (plus an `evaluation_setup` header).
+- **`output/evaluation_report.md`** — a human-readable report with result
+  tables (free-text, phrase, proximity, reranking), the unknown-term behavior,
+  the two positional-impact cases, and honest observations.
+
+### What is evaluated
+
+- **Free-text queries (≥ 10):** single-term, multi-term, several clothing
+  categories, and descriptive concepts. Each is run through the required
+  lnc.ltc VSM (top 10, descending score, ascending docID for ties). The
+  proximity-aware reranked ranking is recorded **separately** — it never
+  replaces the required lnc.ltc baseline.
+- **Exact phrase queries (≥ 5):** e.g. `cotton shirt`, `stretch denim`,
+  `festive wear`, `winter wear`, `regular fit`, `high waist`,
+  `breathable fabric`. Each match records the actual consecutive positions and
+  is checked to be strictly `+1`-consecutive in query order.
+- **Proximity queries (≥ 3, different k):** ordered `WITHIN/k` searches
+  (`cotton W/3 shirt`, `stretch W/4 denim`, `winter W/2 wear`, `high W/1 waist`,
+  `slim W/3 fit`) with the satisfying `(p1, p2)` pairs (`0 < p2 - p1 <= k`).
+- **Unknown / absent term query:** e.g. `corduroy blazer` (all terms absent)
+  and `cotton corduroy` (known + absent). Confirms VSM, phrase, and proximity
+  all handle absent terms cleanly (no crash, no invented matches, in-range
+  scores). Results are produced by executing the retrieval code, not hard-coded.
+
+### How the positional analysis works
+
+Two genuine corpus cases are **derived from the actual positional index**:
+
+- **Case 1 — phrase vs. co-occurrence.** The harness finds a phrase where the
+  set of documents containing all terms *somewhere* strictly exceeds the exact
+  phrase matches, then reports a concrete co-occurrence-only document with the
+  real term positions (e.g. for `cotton shirt`, **15** docs co-occur but only
+  **10** match the phrase; **D011** has `cotton` at 11 and `shirt` at 3/8/13,
+  never adjacent).
+- **Case 2 — proximity re-ranking.** The harness finds the first multi-term
+  query whose ranking the reranker changes, then reports the risen document,
+  the higher-cosine document it overtook, and the positional evidence (e.g.
+  `cotton denim`: **D053** has `cotton`/`denim` adjacent — gap 1, bonus 0.5 —
+  and rises from baseline rank 6 to reranked rank 3, overtaking **D043** which
+  has higher cosine but the terms never co-occur).
+
+### How the reranker is evaluated
+
+Section 8 of the report compares baseline lnc.ltc against lnc.ltc + proximity
+re-ranking for several multi-term queries, listing each document's baseline
+rank, reranked rank, cosine score, proximity bonus, and final score. It states
+plainly whether each query's order changed (e.g. `cotton denim`,
+`regular winter`, `jacket festive` change; `cotton shirt` does not, because the
+proximity bonus is uniform across the top group). No improvement is fabricated.
+
+### Automated tests
+
+`tests/test_ir.py` is a behavioural pytest suite (36 tests) covering the
+corpus (N = 100, unique IDs, required fields), preprocessing (lowercasing,
+punctuation, stopwords, stemming, index/query consistency), the inverted index
+(df/tf correctness, valid postings, df ≠ collection frequency), the VSM
+(unknown-term safety, cosine range, determinism, docID tie-break, top-k, and a
+hand-recomputed lnc.ltc single-term check with no idf on documents), the
+positional index (positions recover their tokens, tf = len(positions), phrase
+consecutiveness, phrase order sensitivity, proximity respects k), and the
+reranker (baseline untouched, `alpha = 0` recovers the baseline order,
+deterministic bonuses, no bonus without positional evidence, and the
+`final = cosine + alpha·bonus` formula).
+
+```bash
+python -m pytest tests/ -q
+```
+
 ## Status
 
 Part A is in place: XML-style corpus parsing, a documented English stopword
@@ -331,5 +427,7 @@ place: a Streamlit search interface (`src/app.py`) with free-text ranked
 retrieval and a phrase/proximity mode that surfaces matching positions. The
 **novelty** — proximity-aware re-ranking (`src/reranker.py`) — is in place and
 wired into the free-text UI behind a toggle, keeping the `lnc.ltc` baseline
-available unchanged for comparison. Part E (the evaluation harness) is still
-pending.
+available unchanged for comparison. Part E is in place: a reproducible
+evaluation and analysis harness (`src/evaluate.py`) that regenerates
+`output/evaluation_results.json` and `output/evaluation_report.md`, plus a
+behavioural pytest suite (`tests/test_ir.py`, 36 tests, all passing).

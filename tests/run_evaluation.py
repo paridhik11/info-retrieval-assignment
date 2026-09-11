@@ -2,24 +2,34 @@
 run_evaluation.py
 =================
 
-Part E of the assignment: the mandatory evaluation harness.
+Part E convenience entry point.
 
-Responsibilities (to be implemented in a later step):
-    * Run at least 10 free-text queries through the VSM.
-    * Run at least 5 exact phrase queries.
-    * Run at least 3 proximity queries with different values of k.
-    * Include at least one query with a term that does not occur in the corpus.
-    * Report the top-10 results for each query and highlight at least two cases
-      where positional information changes the result set / order.
-    * Write machine-readable results to ``output/test_results.json`` and a
-      human-readable summary to ``output/test_results.md``; the comparative
-      discussion goes to ``output/analysis.md``.
+The full evaluation and analysis harness lives in :mod:`src.evaluate` (a single
+source of truth, driven entirely by the live retrieval code). This thin wrapper
+exists only so the historical ``tests/run_evaluation.py`` path still works; it
+simply delegates to ``src.evaluate.main``.
 
-Design notes (kept explicit for the viva):
-    * Expected document IDs are NEVER hard-coded. Queries are defined, executed,
-      and their results are reported as produced by the retrieval code.
+Preferred invocation::
 
-NOTE: Evaluation logic is intentionally NOT implemented yet in this commit.
+    python -m src.evaluate
+
+Equivalent::
+
+    python tests/run_evaluation.py
 """
 
-# Implementation intentionally deferred.
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_SRC_DIR = _REPO_ROOT / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
+
+from evaluate import main  # noqa: E402
+
+
+if __name__ == "__main__":
+    main()

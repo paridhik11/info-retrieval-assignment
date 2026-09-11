@@ -1,0 +1,5930 @@
+{
+  "evaluation_setup": {
+    "corpus_size": 100,
+    "N_for_idf": 100,
+    "vocabulary_size": 124,
+    "preprocessing": "lowercase -> punctuation split -> NLTK English stopword removal -> Porter stemming (single shared pipeline)",
+    "ranking_model": "Vector Space Model, lnc.ltc SMART scheme, cosine similarity; document tf = 1 + log10(tf), no idf on documents; query weight = (1 + log10(tf_q)) * log10(N/df); both vectors cosine-normalized; ties broken by ascending docID",
+    "positional_model": "positional index storing zero-based positions in the processed token stream; exact phrase search (consecutive positions, in order); ordered proximity search 0 < p2-p1 <= k",
+    "reranking_method": "proximity-aware re-ranking of the top VSM candidates: final_score = cosine + alpha * sum(1/(1+min_gap)) over distinct known query-term pairs (alpha=0.15, candidate_k=20); baseline lnc.ltc left unchanged",
+    "top_k": 10
+  },
+  "free_text_queries": [
+    {
+      "query": "cotton shirt",
+      "normalized_terms": [
+        "cotton",
+        "shirt"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "cosine": 0.273136
+        },
+        {
+          "rank": 2,
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "cosine": 0.273136
+        },
+        {
+          "rank": 3,
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "cosine": 0.273136
+        },
+        {
+          "rank": 4,
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "cosine": 0.270277
+        },
+        {
+          "rank": 5,
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "cosine": 0.270114
+        },
+        {
+          "rank": 6,
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "cosine": 0.270114
+        },
+        {
+          "rank": 7,
+          "docID": "D042",
+          "title": "Men's Checked Cotton Shirt - Maroon",
+          "category": "Shirt",
+          "cosine": 0.268297
+        },
+        {
+          "rank": 8,
+          "docID": "D002",
+          "title": "Men's Checked Cotton Shirt - Black",
+          "category": "Shirt",
+          "cosine": 0.265417
+        },
+        {
+          "rank": 9,
+          "docID": "D062",
+          "title": "Men's Checked Cotton Shirt - Olive",
+          "category": "Shirt",
+          "cosine": 0.265417
+        },
+        {
+          "rank": 10,
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "cosine": 0.264337
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "cosine": 0.273136,
+          "proximity_bonus": 0.5,
+          "final_score": 0.348136
+        },
+        {
+          "rank": 2,
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "cosine": 0.273136,
+          "proximity_bonus": 0.5,
+          "final_score": 0.348136
+        },
+        {
+          "rank": 3,
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "cosine": 0.273136,
+          "proximity_bonus": 0.5,
+          "final_score": 0.348136
+        },
+        {
+          "rank": 4,
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "cosine": 0.270277,
+          "proximity_bonus": 0.5,
+          "final_score": 0.345277
+        },
+        {
+          "rank": 5,
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "cosine": 0.270114,
+          "proximity_bonus": 0.5,
+          "final_score": 0.345114
+        },
+        {
+          "rank": 6,
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "cosine": 0.270114,
+          "proximity_bonus": 0.5,
+          "final_score": 0.345114
+        },
+        {
+          "rank": 7,
+          "docID": "D042",
+          "title": "Men's Checked Cotton Shirt - Maroon",
+          "category": "Shirt",
+          "cosine": 0.268297,
+          "proximity_bonus": 0.5,
+          "final_score": 0.343297
+        },
+        {
+          "rank": 8,
+          "docID": "D002",
+          "title": "Men's Checked Cotton Shirt - Black",
+          "category": "Shirt",
+          "cosine": 0.265417,
+          "proximity_bonus": 0.5,
+          "final_score": 0.340417
+        },
+        {
+          "rank": 9,
+          "docID": "D062",
+          "title": "Men's Checked Cotton Shirt - Olive",
+          "category": "Shirt",
+          "cosine": 0.265417,
+          "proximity_bonus": 0.5,
+          "final_score": 0.340417
+        },
+        {
+          "rank": 10,
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "cosine": 0.264337,
+          "proximity_bonus": 0.5,
+          "final_score": 0.339337
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "denim jeans",
+      "normalized_terms": [
+        "denim",
+        "jean"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D023",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.303673
+        },
+        {
+          "rank": 2,
+          "docID": "D083",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.303673
+        },
+        {
+          "rank": 3,
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.301702
+        },
+        {
+          "rank": 4,
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.296465
+        },
+        {
+          "rank": 5,
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.296465
+        },
+        {
+          "rank": 6,
+          "docID": "D053",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.256583
+        },
+        {
+          "rank": 7,
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.256305
+        },
+        {
+          "rank": 8,
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.256305
+        },
+        {
+          "rank": 9,
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.251903
+        },
+        {
+          "rank": 10,
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.251903
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D023",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.303673,
+          "proximity_bonus": 0.5,
+          "final_score": 0.378673
+        },
+        {
+          "rank": 2,
+          "docID": "D083",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.303673,
+          "proximity_bonus": 0.5,
+          "final_score": 0.378673
+        },
+        {
+          "rank": 3,
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.301702,
+          "proximity_bonus": 0.5,
+          "final_score": 0.376702
+        },
+        {
+          "rank": 4,
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.296465,
+          "proximity_bonus": 0.5,
+          "final_score": 0.371465
+        },
+        {
+          "rank": 5,
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.296465,
+          "proximity_bonus": 0.5,
+          "final_score": 0.371465
+        },
+        {
+          "rank": 6,
+          "docID": "D053",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.256583,
+          "proximity_bonus": 0.5,
+          "final_score": 0.331583
+        },
+        {
+          "rank": 7,
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.256305,
+          "proximity_bonus": 0.5,
+          "final_score": 0.331305
+        },
+        {
+          "rank": 8,
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.256305,
+          "proximity_bonus": 0.5,
+          "final_score": 0.331305
+        },
+        {
+          "rank": 9,
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.251903,
+          "proximity_bonus": 0.5,
+          "final_score": 0.326903
+        },
+        {
+          "rank": 10,
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.251903,
+          "proximity_bonus": 0.5,
+          "final_score": 0.326903
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "winter jacket",
+      "normalized_terms": [
+        "winter",
+        "jacket"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "cosine": 0.31225
+        },
+        {
+          "rank": 2,
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "cosine": 0.310061
+        },
+        {
+          "rank": 3,
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "cosine": 0.310061
+        },
+        {
+          "rank": 4,
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.306598
+        },
+        {
+          "rank": 5,
+          "docID": "D098",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.306598
+        },
+        {
+          "rank": 6,
+          "docID": "D028",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "cosine": 0.267689
+        },
+        {
+          "rank": 7,
+          "docID": "D088",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "cosine": 0.267689
+        },
+        {
+          "rank": 8,
+          "docID": "D048",
+          "title": "Women's Casual Puffer Jacket - Beige",
+          "category": "Jacket",
+          "cosine": 0.265855
+        },
+        {
+          "rank": 9,
+          "docID": "D008",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.26295
+        },
+        {
+          "rank": 10,
+          "docID": "D068",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.26295
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "cosine": 0.31225,
+          "proximity_bonus": 0.5,
+          "final_score": 0.38725
+        },
+        {
+          "rank": 2,
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "cosine": 0.310061,
+          "proximity_bonus": 0.5,
+          "final_score": 0.385061
+        },
+        {
+          "rank": 3,
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "cosine": 0.310061,
+          "proximity_bonus": 0.5,
+          "final_score": 0.385061
+        },
+        {
+          "rank": 4,
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.306598,
+          "proximity_bonus": 0.5,
+          "final_score": 0.381598
+        },
+        {
+          "rank": 5,
+          "docID": "D098",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.306598,
+          "proximity_bonus": 0.5,
+          "final_score": 0.381598
+        },
+        {
+          "rank": 6,
+          "docID": "D028",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "cosine": 0.267689,
+          "proximity_bonus": 0.125,
+          "final_score": 0.286439
+        },
+        {
+          "rank": 7,
+          "docID": "D088",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "cosine": 0.267689,
+          "proximity_bonus": 0.125,
+          "final_score": 0.286439
+        },
+        {
+          "rank": 8,
+          "docID": "D048",
+          "title": "Women's Casual Puffer Jacket - Beige",
+          "category": "Jacket",
+          "cosine": 0.265855,
+          "proximity_bonus": 0.125,
+          "final_score": 0.284605
+        },
+        {
+          "rank": 9,
+          "docID": "D008",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.26295,
+          "proximity_bonus": 0.125,
+          "final_score": 0.2817
+        },
+        {
+          "rank": 10,
+          "docID": "D068",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "cosine": 0.26295,
+          "proximity_bonus": 0.125,
+          "final_score": 0.2817
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "kurta",
+      "normalized_terms": [
+        "kurta"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D004",
+          "title": "Men's Regular Fit Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.220983
+        },
+        {
+          "rank": 2,
+          "docID": "D064",
+          "title": "Men's Regular Fit Kurta - White",
+          "category": "Kurta",
+          "cosine": 0.220983
+        },
+        {
+          "rank": 3,
+          "docID": "D024",
+          "title": "Men's Regular Fit Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.218987
+        },
+        {
+          "rank": 4,
+          "docID": "D084",
+          "title": "Men's Regular Fit Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.218987
+        },
+        {
+          "rank": 5,
+          "docID": "D034",
+          "title": "Women's Printed Straight Kurta - Maroon",
+          "category": "Kurta",
+          "cosine": 0.218499
+        },
+        {
+          "rank": 6,
+          "docID": "D094",
+          "title": "Women's Printed Straight Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.218499
+        },
+        {
+          "rank": 7,
+          "docID": "D054",
+          "title": "Women's Printed Straight Kurta - Mustard",
+          "category": "Kurta",
+          "cosine": 0.216569
+        },
+        {
+          "rank": 8,
+          "docID": "D014",
+          "title": "Women's Printed Straight Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.214975
+        },
+        {
+          "rank": 9,
+          "docID": "D074",
+          "title": "Women's Printed Straight Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.214975
+        },
+        {
+          "rank": 10,
+          "docID": "D044",
+          "title": "Men's Regular Fit Kurta - Navy Blue",
+          "category": "Kurta",
+          "cosine": 0.212381
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D004",
+          "title": "Men's Regular Fit Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.220983,
+          "proximity_bonus": 0.0,
+          "final_score": 0.220983
+        },
+        {
+          "rank": 2,
+          "docID": "D064",
+          "title": "Men's Regular Fit Kurta - White",
+          "category": "Kurta",
+          "cosine": 0.220983,
+          "proximity_bonus": 0.0,
+          "final_score": 0.220983
+        },
+        {
+          "rank": 3,
+          "docID": "D024",
+          "title": "Men's Regular Fit Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.218987,
+          "proximity_bonus": 0.0,
+          "final_score": 0.218987
+        },
+        {
+          "rank": 4,
+          "docID": "D084",
+          "title": "Men's Regular Fit Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.218987,
+          "proximity_bonus": 0.0,
+          "final_score": 0.218987
+        },
+        {
+          "rank": 5,
+          "docID": "D034",
+          "title": "Women's Printed Straight Kurta - Maroon",
+          "category": "Kurta",
+          "cosine": 0.218499,
+          "proximity_bonus": 0.0,
+          "final_score": 0.218499
+        },
+        {
+          "rank": 6,
+          "docID": "D094",
+          "title": "Women's Printed Straight Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.218499,
+          "proximity_bonus": 0.0,
+          "final_score": 0.218499
+        },
+        {
+          "rank": 7,
+          "docID": "D054",
+          "title": "Women's Printed Straight Kurta - Mustard",
+          "category": "Kurta",
+          "cosine": 0.216569,
+          "proximity_bonus": 0.0,
+          "final_score": 0.216569
+        },
+        {
+          "rank": 8,
+          "docID": "D014",
+          "title": "Women's Printed Straight Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.214975,
+          "proximity_bonus": 0.0,
+          "final_score": 0.214975
+        },
+        {
+          "rank": 9,
+          "docID": "D074",
+          "title": "Women's Printed Straight Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.214975,
+          "proximity_bonus": 0.0,
+          "final_score": 0.214975
+        },
+        {
+          "rank": 10,
+          "docID": "D044",
+          "title": "Men's Regular Fit Kurta - Navy Blue",
+          "category": "Kurta",
+          "cosine": 0.212381,
+          "proximity_bonus": 0.0,
+          "final_score": 0.212381
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "stretch leggings",
+      "normalized_terms": [
+        "stretch",
+        "leg"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D029",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.305193
+        },
+        {
+          "rank": 2,
+          "docID": "D049",
+          "title": "Women's High Waist Stretch Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.305193
+        },
+        {
+          "rank": 3,
+          "docID": "D089",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.305193
+        },
+        {
+          "rank": 4,
+          "docID": "D009",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.295294
+        },
+        {
+          "rank": 5,
+          "docID": "D069",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.295294
+        },
+        {
+          "rank": 6,
+          "docID": "D019",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.162094
+        },
+        {
+          "rank": 7,
+          "docID": "D059",
+          "title": "Women's Printed Active Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.162094
+        },
+        {
+          "rank": 8,
+          "docID": "D079",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.162094
+        },
+        {
+          "rank": 9,
+          "docID": "D039",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.156819
+        },
+        {
+          "rank": 10,
+          "docID": "D099",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.156819
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D029",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.305193,
+          "proximity_bonus": 0.5,
+          "final_score": 0.380193
+        },
+        {
+          "rank": 2,
+          "docID": "D049",
+          "title": "Women's High Waist Stretch Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.305193,
+          "proximity_bonus": 0.5,
+          "final_score": 0.380193
+        },
+        {
+          "rank": 3,
+          "docID": "D089",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.305193,
+          "proximity_bonus": 0.5,
+          "final_score": 0.380193
+        },
+        {
+          "rank": 4,
+          "docID": "D009",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.295294,
+          "proximity_bonus": 0.5,
+          "final_score": 0.370294
+        },
+        {
+          "rank": 5,
+          "docID": "D069",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.295294,
+          "proximity_bonus": 0.5,
+          "final_score": 0.370294
+        },
+        {
+          "rank": 6,
+          "docID": "D019",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.162094,
+          "proximity_bonus": 0.0,
+          "final_score": 0.162094
+        },
+        {
+          "rank": 7,
+          "docID": "D059",
+          "title": "Women's Printed Active Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.162094,
+          "proximity_bonus": 0.0,
+          "final_score": 0.162094
+        },
+        {
+          "rank": 8,
+          "docID": "D079",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.162094,
+          "proximity_bonus": 0.0,
+          "final_score": 0.162094
+        },
+        {
+          "rank": 9,
+          "docID": "D039",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.156819,
+          "proximity_bonus": 0.0,
+          "final_score": 0.156819
+        },
+        {
+          "rank": 10,
+          "docID": "D099",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.156819,
+          "proximity_bonus": 0.0,
+          "final_score": 0.156819
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "fleece hoodie",
+      "normalized_terms": [
+        "fleec",
+        "hoodi"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D037",
+          "title": "Unisex Fleece Pullover Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.312345
+        },
+        {
+          "rank": 2,
+          "docID": "D097",
+          "title": "Unisex Fleece Pullover Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.312345
+        },
+        {
+          "rank": 3,
+          "docID": "D057",
+          "title": "Unisex Fleece Pullover Hoodie - Wine",
+          "category": "Hoodie",
+          "cosine": 0.308879
+        },
+        {
+          "rank": 4,
+          "docID": "D017",
+          "title": "Unisex Fleece Pullover Hoodie - Navy Blue",
+          "category": "Hoodie",
+          "cosine": 0.304929
+        },
+        {
+          "rank": 5,
+          "docID": "D077",
+          "title": "Unisex Fleece Pullover Hoodie - Navy Blue",
+          "category": "Hoodie",
+          "cosine": 0.304929
+        },
+        {
+          "rank": 6,
+          "docID": "D007",
+          "title": "Women's Oversized Fleece Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.290612
+        },
+        {
+          "rank": 7,
+          "docID": "D067",
+          "title": "Women's Oversized Fleece Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.290612
+        },
+        {
+          "rank": 8,
+          "docID": "D027",
+          "title": "Women's Oversized Fleece Hoodie - Wine",
+          "category": "Hoodie",
+          "cosine": 0.287493
+        },
+        {
+          "rank": 9,
+          "docID": "D087",
+          "title": "Women's Oversized Fleece Hoodie - Wine",
+          "category": "Hoodie",
+          "cosine": 0.287493
+        },
+        {
+          "rank": 10,
+          "docID": "D047",
+          "title": "Women's Oversized Fleece Hoodie - Navy Blue",
+          "category": "Hoodie",
+          "cosine": 0.283932
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D037",
+          "title": "Unisex Fleece Pullover Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.312345,
+          "proximity_bonus": 0.5,
+          "final_score": 0.387345
+        },
+        {
+          "rank": 2,
+          "docID": "D097",
+          "title": "Unisex Fleece Pullover Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.312345,
+          "proximity_bonus": 0.5,
+          "final_score": 0.387345
+        },
+        {
+          "rank": 3,
+          "docID": "D057",
+          "title": "Unisex Fleece Pullover Hoodie - Wine",
+          "category": "Hoodie",
+          "cosine": 0.308879,
+          "proximity_bonus": 0.5,
+          "final_score": 0.383879
+        },
+        {
+          "rank": 4,
+          "docID": "D017",
+          "title": "Unisex Fleece Pullover Hoodie - Navy Blue",
+          "category": "Hoodie",
+          "cosine": 0.304929,
+          "proximity_bonus": 0.5,
+          "final_score": 0.379929
+        },
+        {
+          "rank": 5,
+          "docID": "D077",
+          "title": "Unisex Fleece Pullover Hoodie - Navy Blue",
+          "category": "Hoodie",
+          "cosine": 0.304929,
+          "proximity_bonus": 0.5,
+          "final_score": 0.379929
+        },
+        {
+          "rank": 6,
+          "docID": "D007",
+          "title": "Women's Oversized Fleece Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.290612,
+          "proximity_bonus": 0.5,
+          "final_score": 0.365612
+        },
+        {
+          "rank": 7,
+          "docID": "D067",
+          "title": "Women's Oversized Fleece Hoodie - Black",
+          "category": "Hoodie",
+          "cosine": 0.290612,
+          "proximity_bonus": 0.5,
+          "final_score": 0.365612
+        },
+        {
+          "rank": 8,
+          "docID": "D027",
+          "title": "Women's Oversized Fleece Hoodie - Wine",
+          "category": "Hoodie",
+          "cosine": 0.287493,
+          "proximity_bonus": 0.5,
+          "final_score": 0.362493
+        },
+        {
+          "rank": 9,
+          "docID": "D087",
+          "title": "Women's Oversized Fleece Hoodie - Wine",
+          "category": "Hoodie",
+          "cosine": 0.287493,
+          "proximity_bonus": 0.5,
+          "final_score": 0.362493
+        },
+        {
+          "rank": 10,
+          "docID": "D047",
+          "title": "Women's Oversized Fleece Hoodie - Navy Blue",
+          "category": "Hoodie",
+          "cosine": 0.283932,
+          "proximity_bonus": 0.5,
+          "final_score": 0.358932
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "printed saree",
+      "normalized_terms": [
+        "print",
+        "sare"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D005",
+          "title": "Women's Printed Daily Wear Saree - Blue",
+          "category": "Saree",
+          "cosine": 0.304686
+        },
+        {
+          "rank": 2,
+          "docID": "D025",
+          "title": "Women's Printed Daily Wear Saree - Maroon",
+          "category": "Saree",
+          "cosine": 0.304686
+        },
+        {
+          "rank": 3,
+          "docID": "D065",
+          "title": "Women's Printed Daily Wear Saree - Green",
+          "category": "Saree",
+          "cosine": 0.304686
+        },
+        {
+          "rank": 4,
+          "docID": "D085",
+          "title": "Women's Printed Daily Wear Saree - Red",
+          "category": "Saree",
+          "cosine": 0.304686
+        },
+        {
+          "rank": 5,
+          "docID": "D045",
+          "title": "Women's Printed Daily Wear Saree - Purple",
+          "category": "Saree",
+          "cosine": 0.301397
+        },
+        {
+          "rank": 6,
+          "docID": "D035",
+          "title": "Women's Cotton Handloom Saree - Yellow",
+          "category": "Saree",
+          "cosine": 0.265256
+        },
+        {
+          "rank": 7,
+          "docID": "D055",
+          "title": "Women's Cotton Handloom Saree - Pink",
+          "category": "Saree",
+          "cosine": 0.265256
+        },
+        {
+          "rank": 8,
+          "docID": "D095",
+          "title": "Women's Cotton Handloom Saree - Maroon",
+          "category": "Saree",
+          "cosine": 0.265256
+        },
+        {
+          "rank": 9,
+          "docID": "D015",
+          "title": "Women's Cotton Handloom Saree - Red",
+          "category": "Saree",
+          "cosine": 0.26237
+        },
+        {
+          "rank": 10,
+          "docID": "D075",
+          "title": "Women's Cotton Handloom Saree - Blue",
+          "category": "Saree",
+          "cosine": 0.26237
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D005",
+          "title": "Women's Printed Daily Wear Saree - Blue",
+          "category": "Saree",
+          "cosine": 0.304686,
+          "proximity_bonus": 0.25,
+          "final_score": 0.342186
+        },
+        {
+          "rank": 2,
+          "docID": "D025",
+          "title": "Women's Printed Daily Wear Saree - Maroon",
+          "category": "Saree",
+          "cosine": 0.304686,
+          "proximity_bonus": 0.25,
+          "final_score": 0.342186
+        },
+        {
+          "rank": 3,
+          "docID": "D065",
+          "title": "Women's Printed Daily Wear Saree - Green",
+          "category": "Saree",
+          "cosine": 0.304686,
+          "proximity_bonus": 0.25,
+          "final_score": 0.342186
+        },
+        {
+          "rank": 4,
+          "docID": "D085",
+          "title": "Women's Printed Daily Wear Saree - Red",
+          "category": "Saree",
+          "cosine": 0.304686,
+          "proximity_bonus": 0.25,
+          "final_score": 0.342186
+        },
+        {
+          "rank": 5,
+          "docID": "D045",
+          "title": "Women's Printed Daily Wear Saree - Purple",
+          "category": "Saree",
+          "cosine": 0.301397,
+          "proximity_bonus": 0.25,
+          "final_score": 0.338897
+        },
+        {
+          "rank": 6,
+          "docID": "D035",
+          "title": "Women's Cotton Handloom Saree - Yellow",
+          "category": "Saree",
+          "cosine": 0.265256,
+          "proximity_bonus": 0.111111,
+          "final_score": 0.281922
+        },
+        {
+          "rank": 7,
+          "docID": "D055",
+          "title": "Women's Cotton Handloom Saree - Pink",
+          "category": "Saree",
+          "cosine": 0.265256,
+          "proximity_bonus": 0.111111,
+          "final_score": 0.281922
+        },
+        {
+          "rank": 8,
+          "docID": "D095",
+          "title": "Women's Cotton Handloom Saree - Maroon",
+          "category": "Saree",
+          "cosine": 0.265256,
+          "proximity_bonus": 0.111111,
+          "final_score": 0.281922
+        },
+        {
+          "rank": 9,
+          "docID": "D015",
+          "title": "Women's Cotton Handloom Saree - Red",
+          "category": "Saree",
+          "cosine": 0.26237,
+          "proximity_bonus": 0.111111,
+          "final_score": 0.279037
+        },
+        {
+          "rank": 10,
+          "docID": "D075",
+          "title": "Women's Cotton Handloom Saree - Blue",
+          "category": "Saree",
+          "cosine": 0.26237,
+          "proximity_bonus": 0.111111,
+          "final_score": 0.279037
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "breathable fabric",
+      "normalized_terms": [
+        "breathabl",
+        "fabric"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D014",
+          "title": "Women's Printed Straight Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.207339
+        },
+        {
+          "rank": 2,
+          "docID": "D074",
+          "title": "Women's Printed Straight Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.207339
+        },
+        {
+          "rank": 3,
+          "docID": "D044",
+          "title": "Men's Regular Fit Kurta - Navy Blue",
+          "category": "Kurta",
+          "cosine": 0.204838
+        },
+        {
+          "rank": 4,
+          "docID": "D004",
+          "title": "Men's Regular Fit Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.195753
+        },
+        {
+          "rank": 5,
+          "docID": "D064",
+          "title": "Men's Regular Fit Kurta - White",
+          "category": "Kurta",
+          "cosine": 0.195753
+        },
+        {
+          "rank": 6,
+          "docID": "D024",
+          "title": "Men's Regular Fit Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.193985
+        },
+        {
+          "rank": 7,
+          "docID": "D084",
+          "title": "Men's Regular Fit Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.193985
+        },
+        {
+          "rank": 8,
+          "docID": "D034",
+          "title": "Women's Printed Straight Kurta - Maroon",
+          "category": "Kurta",
+          "cosine": 0.193552
+        },
+        {
+          "rank": 9,
+          "docID": "D094",
+          "title": "Women's Printed Straight Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.193552
+        },
+        {
+          "rank": 10,
+          "docID": "D011",
+          "title": "Men's Oversized Graphic T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "cosine": 0.193287
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D014",
+          "title": "Women's Printed Straight Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.207339,
+          "proximity_bonus": 0.5,
+          "final_score": 0.282339
+        },
+        {
+          "rank": 2,
+          "docID": "D074",
+          "title": "Women's Printed Straight Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.207339,
+          "proximity_bonus": 0.5,
+          "final_score": 0.282339
+        },
+        {
+          "rank": 3,
+          "docID": "D044",
+          "title": "Men's Regular Fit Kurta - Navy Blue",
+          "category": "Kurta",
+          "cosine": 0.204838,
+          "proximity_bonus": 0.5,
+          "final_score": 0.279838
+        },
+        {
+          "rank": 4,
+          "docID": "D004",
+          "title": "Men's Regular Fit Kurta - Pink",
+          "category": "Kurta",
+          "cosine": 0.195753,
+          "proximity_bonus": 0.5,
+          "final_score": 0.270753
+        },
+        {
+          "rank": 5,
+          "docID": "D064",
+          "title": "Men's Regular Fit Kurta - White",
+          "category": "Kurta",
+          "cosine": 0.195753,
+          "proximity_bonus": 0.5,
+          "final_score": 0.270753
+        },
+        {
+          "rank": 6,
+          "docID": "D024",
+          "title": "Men's Regular Fit Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.193985,
+          "proximity_bonus": 0.5,
+          "final_score": 0.268985
+        },
+        {
+          "rank": 7,
+          "docID": "D084",
+          "title": "Men's Regular Fit Kurta - Beige",
+          "category": "Kurta",
+          "cosine": 0.193985,
+          "proximity_bonus": 0.5,
+          "final_score": 0.268985
+        },
+        {
+          "rank": 8,
+          "docID": "D034",
+          "title": "Women's Printed Straight Kurta - Maroon",
+          "category": "Kurta",
+          "cosine": 0.193552,
+          "proximity_bonus": 0.5,
+          "final_score": 0.268552
+        },
+        {
+          "rank": 9,
+          "docID": "D094",
+          "title": "Women's Printed Straight Kurta - Teal",
+          "category": "Kurta",
+          "cosine": 0.193552,
+          "proximity_bonus": 0.5,
+          "final_score": 0.268552
+        },
+        {
+          "rank": 10,
+          "docID": "D011",
+          "title": "Men's Oversized Graphic T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "cosine": 0.193287,
+          "proximity_bonus": 0.5,
+          "final_score": 0.268287
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "high waist leggings",
+      "normalized_terms": [
+        "high",
+        "waist",
+        "leg"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D029",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.374464
+        },
+        {
+          "rank": 2,
+          "docID": "D049",
+          "title": "Women's High Waist Stretch Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.374464
+        },
+        {
+          "rank": 3,
+          "docID": "D089",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.374464
+        },
+        {
+          "rank": 4,
+          "docID": "D009",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.36232
+        },
+        {
+          "rank": 5,
+          "docID": "D069",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.36232
+        },
+        {
+          "rank": 6,
+          "docID": "D019",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.294334
+        },
+        {
+          "rank": 7,
+          "docID": "D059",
+          "title": "Women's Printed Active Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.294334
+        },
+        {
+          "rank": 8,
+          "docID": "D079",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.294334
+        },
+        {
+          "rank": 9,
+          "docID": "D039",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.284756
+        },
+        {
+          "rank": 10,
+          "docID": "D099",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.284756
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D029",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.374464,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.536964
+        },
+        {
+          "rank": 2,
+          "docID": "D049",
+          "title": "Women's High Waist Stretch Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.374464,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.536964
+        },
+        {
+          "rank": 3,
+          "docID": "D089",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.374464,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.536964
+        },
+        {
+          "rank": 4,
+          "docID": "D009",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.36232,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.52482
+        },
+        {
+          "rank": 5,
+          "docID": "D069",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.36232,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.52482
+        },
+        {
+          "rank": 6,
+          "docID": "D019",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.294334,
+          "proximity_bonus": 0.711111,
+          "final_score": 0.401
+        },
+        {
+          "rank": 7,
+          "docID": "D059",
+          "title": "Women's Printed Active Leggings - Grey",
+          "category": "Leggings",
+          "cosine": 0.294334,
+          "proximity_bonus": 0.711111,
+          "final_score": 0.401
+        },
+        {
+          "rank": 8,
+          "docID": "D079",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "cosine": 0.294334,
+          "proximity_bonus": 0.711111,
+          "final_score": 0.401
+        },
+        {
+          "rank": 9,
+          "docID": "D039",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.284756,
+          "proximity_bonus": 0.711111,
+          "final_score": 0.391423
+        },
+        {
+          "rank": 10,
+          "docID": "D099",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "cosine": 0.284756,
+          "proximity_bonus": 0.711111,
+          "final_score": 0.391423
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "slim fit jeans",
+      "normalized_terms": [
+        "slim",
+        "fit",
+        "jean"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D053",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.323175
+        },
+        {
+          "rank": 2,
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.322825
+        },
+        {
+          "rank": 3,
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.322825
+        },
+        {
+          "rank": 4,
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.31728
+        },
+        {
+          "rank": 5,
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.31728
+        },
+        {
+          "rank": 6,
+          "docID": "D023",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.209961
+        },
+        {
+          "rank": 7,
+          "docID": "D083",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.209961
+        },
+        {
+          "rank": 8,
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.208598
+        },
+        {
+          "rank": 9,
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.204978
+        },
+        {
+          "rank": 10,
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.204978
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D053",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.323175,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.485675
+        },
+        {
+          "rank": 2,
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.322825,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.485325
+        },
+        {
+          "rank": 3,
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.322825,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.485325
+        },
+        {
+          "rank": 4,
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.31728,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.47978
+        },
+        {
+          "rank": 5,
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.31728,
+          "proximity_bonus": 1.083333,
+          "final_score": 0.47978
+        },
+        {
+          "rank": 6,
+          "docID": "D023",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.209961,
+          "proximity_bonus": 0.333333,
+          "final_score": 0.259961
+        },
+        {
+          "rank": 7,
+          "docID": "D083",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.209961,
+          "proximity_bonus": 0.333333,
+          "final_score": 0.259961
+        },
+        {
+          "rank": 8,
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.208598,
+          "proximity_bonus": 0.333333,
+          "final_score": 0.258598
+        },
+        {
+          "rank": 9,
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.204978,
+          "proximity_bonus": 0.333333,
+          "final_score": 0.254978
+        },
+        {
+          "rank": 10,
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "cosine": 0.204978,
+          "proximity_bonus": 0.333333,
+          "final_score": 0.254978
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "cotton",
+      "normalized_terms": [
+        "cotton"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "cosine": 0.21544
+        },
+        {
+          "rank": 2,
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "cosine": 0.21544
+        },
+        {
+          "rank": 3,
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "cosine": 0.21544
+        },
+        {
+          "rank": 4,
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "cosine": 0.213184
+        },
+        {
+          "rank": 5,
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "cosine": 0.208499
+        },
+        {
+          "rank": 6,
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "cosine": 0.19349
+        },
+        {
+          "rank": 7,
+          "docID": "D035",
+          "title": "Women's Cotton Handloom Saree - Yellow",
+          "category": "Saree",
+          "cosine": 0.19349
+        },
+        {
+          "rank": 8,
+          "docID": "D055",
+          "title": "Women's Cotton Handloom Saree - Pink",
+          "category": "Saree",
+          "cosine": 0.19349
+        },
+        {
+          "rank": 9,
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "cosine": 0.19349
+        },
+        {
+          "rank": 10,
+          "docID": "D095",
+          "title": "Women's Cotton Handloom Saree - Maroon",
+          "category": "Saree",
+          "cosine": 0.19349
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "cosine": 0.21544,
+          "proximity_bonus": 0.0,
+          "final_score": 0.21544
+        },
+        {
+          "rank": 2,
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "cosine": 0.21544,
+          "proximity_bonus": 0.0,
+          "final_score": 0.21544
+        },
+        {
+          "rank": 3,
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "cosine": 0.21544,
+          "proximity_bonus": 0.0,
+          "final_score": 0.21544
+        },
+        {
+          "rank": 4,
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "cosine": 0.213184,
+          "proximity_bonus": 0.0,
+          "final_score": 0.213184
+        },
+        {
+          "rank": 5,
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "cosine": 0.208499,
+          "proximity_bonus": 0.0,
+          "final_score": 0.208499
+        },
+        {
+          "rank": 6,
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "cosine": 0.19349,
+          "proximity_bonus": 0.0,
+          "final_score": 0.19349
+        },
+        {
+          "rank": 7,
+          "docID": "D035",
+          "title": "Women's Cotton Handloom Saree - Yellow",
+          "category": "Saree",
+          "cosine": 0.19349,
+          "proximity_bonus": 0.0,
+          "final_score": 0.19349
+        },
+        {
+          "rank": 8,
+          "docID": "D055",
+          "title": "Women's Cotton Handloom Saree - Pink",
+          "category": "Saree",
+          "cosine": 0.19349,
+          "proximity_bonus": 0.0,
+          "final_score": 0.19349
+        },
+        {
+          "rank": 9,
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "cosine": 0.19349,
+          "proximity_bonus": 0.0,
+          "final_score": 0.19349
+        },
+        {
+          "rank": 10,
+          "docID": "D095",
+          "title": "Women's Cotton Handloom Saree - Maroon",
+          "category": "Saree",
+          "cosine": 0.19349,
+          "proximity_bonus": 0.0,
+          "final_score": 0.19349
+        }
+      ],
+      "reranking_changed_order": false
+    },
+    {
+      "query": "midi dress",
+      "normalized_terms": [
+        "midi",
+        "dress"
+      ],
+      "num_results": 10,
+      "baseline_vsm": [
+        {
+          "rank": 1,
+          "docID": "D046",
+          "title": "Women's Solid Midi Dress - Lavender",
+          "category": "Dress",
+          "cosine": 0.28892
+        },
+        {
+          "rank": 2,
+          "docID": "D006",
+          "title": "Women's Solid Midi Dress - Green",
+          "category": "Dress",
+          "cosine": 0.286312
+        },
+        {
+          "rank": 3,
+          "docID": "D066",
+          "title": "Women's Solid Midi Dress - Maroon",
+          "category": "Dress",
+          "cosine": 0.286312
+        },
+        {
+          "rank": 4,
+          "docID": "D026",
+          "title": "Women's Solid Midi Dress - Navy Blue",
+          "category": "Dress",
+          "cosine": 0.276801
+        },
+        {
+          "rank": 5,
+          "docID": "D086",
+          "title": "Women's Solid Midi Dress - Floral Pink",
+          "category": "Dress",
+          "cosine": 0.276801
+        },
+        {
+          "rank": 6,
+          "docID": "D076",
+          "title": "Women's Casual Fit Dress - Green",
+          "category": "Dress",
+          "cosine": 0.137788
+        },
+        {
+          "rank": 7,
+          "docID": "D036",
+          "title": "Women's Casual Fit Dress - Black",
+          "category": "Dress",
+          "cosine": 0.136486
+        },
+        {
+          "rank": 8,
+          "docID": "D056",
+          "title": "Women's Casual Fit Dress - Yellow",
+          "category": "Dress",
+          "cosine": 0.134944
+        },
+        {
+          "rank": 9,
+          "docID": "D016",
+          "title": "Women's Casual Fit Dress - Floral Pink",
+          "category": "Dress",
+          "cosine": 0.134395
+        },
+        {
+          "rank": 10,
+          "docID": "D096",
+          "title": "Women's Casual Fit Dress - Navy Blue",
+          "category": "Dress",
+          "cosine": 0.133186
+        }
+      ],
+      "reranked": [
+        {
+          "rank": 1,
+          "docID": "D046",
+          "title": "Women's Solid Midi Dress - Lavender",
+          "category": "Dress",
+          "cosine": 0.28892,
+          "proximity_bonus": 0.5,
+          "final_score": 0.36392
+        },
+        {
+          "rank": 2,
+          "docID": "D006",
+          "title": "Women's Solid Midi Dress - Green",
+          "category": "Dress",
+          "cosine": 0.286312,
+          "proximity_bonus": 0.5,
+          "final_score": 0.361312
+        },
+        {
+          "rank": 3,
+          "docID": "D066",
+          "title": "Women's Solid Midi Dress - Maroon",
+          "category": "Dress",
+          "cosine": 0.286312,
+          "proximity_bonus": 0.5,
+          "final_score": 0.361312
+        },
+        {
+          "rank": 4,
+          "docID": "D026",
+          "title": "Women's Solid Midi Dress - Navy Blue",
+          "category": "Dress",
+          "cosine": 0.276801,
+          "proximity_bonus": 0.5,
+          "final_score": 0.351801
+        },
+        {
+          "rank": 5,
+          "docID": "D086",
+          "title": "Women's Solid Midi Dress - Floral Pink",
+          "category": "Dress",
+          "cosine": 0.276801,
+          "proximity_bonus": 0.5,
+          "final_score": 0.351801
+        },
+        {
+          "rank": 6,
+          "docID": "D076",
+          "title": "Women's Casual Fit Dress - Green",
+          "category": "Dress",
+          "cosine": 0.137788,
+          "proximity_bonus": 0.0,
+          "final_score": 0.137788
+        },
+        {
+          "rank": 7,
+          "docID": "D036",
+          "title": "Women's Casual Fit Dress - Black",
+          "category": "Dress",
+          "cosine": 0.136486,
+          "proximity_bonus": 0.0,
+          "final_score": 0.136486
+        },
+        {
+          "rank": 8,
+          "docID": "D056",
+          "title": "Women's Casual Fit Dress - Yellow",
+          "category": "Dress",
+          "cosine": 0.134944,
+          "proximity_bonus": 0.0,
+          "final_score": 0.134944
+        },
+        {
+          "rank": 9,
+          "docID": "D016",
+          "title": "Women's Casual Fit Dress - Floral Pink",
+          "category": "Dress",
+          "cosine": 0.134395,
+          "proximity_bonus": 0.0,
+          "final_score": 0.134395
+        },
+        {
+          "rank": 10,
+          "docID": "D096",
+          "title": "Women's Casual Fit Dress - Navy Blue",
+          "category": "Dress",
+          "cosine": 0.133186,
+          "proximity_bonus": 0.0,
+          "final_score": 0.133186
+        }
+      ],
+      "reranking_changed_order": false
+    }
+  ],
+  "phrase_queries": [
+    {
+      "phrase": "cotton shirt",
+      "normalized_terms": [
+        "cotton",
+        "shirt"
+      ],
+      "num_matches": 10,
+      "matching_docIDs": [
+        "D001",
+        "D002",
+        "D021",
+        "D022",
+        "D041",
+        "D042",
+        "D061",
+        "D062",
+        "D081",
+        "D082"
+      ],
+      "matches": [
+        {
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D002",
+          "title": "Men's Checked Cotton Shirt - Black",
+          "category": "Shirt",
+          "matching_positions": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              16,
+              17
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "matching_positions": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D042",
+          "title": "Men's Checked Cotton Shirt - Maroon",
+          "category": "Shirt",
+          "matching_positions": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D062",
+          "title": "Men's Checked Cotton Shirt - Olive",
+          "category": "Shirt",
+          "matching_positions": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "matching_positions": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    },
+    {
+      "phrase": "stretch denim",
+      "normalized_terms": [
+        "stretch",
+        "denim"
+      ],
+      "num_matches": 7,
+      "matching_docIDs": [
+        "D003",
+        "D013",
+        "D033",
+        "D043",
+        "D063",
+        "D073",
+        "D093"
+      ],
+      "matches": [
+        {
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              13,
+              14
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              13,
+              14
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              13,
+              14
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              14,
+              15
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    },
+    {
+      "phrase": "festive wear",
+      "normalized_terms": [
+        "festiv",
+        "wear"
+      ],
+      "num_matches": 10,
+      "matching_docIDs": [
+        "D005",
+        "D015",
+        "D025",
+        "D035",
+        "D045",
+        "D055",
+        "D065",
+        "D075",
+        "D085",
+        "D095"
+      ],
+      "matches": [
+        {
+          "docID": "D005",
+          "title": "Women's Printed Daily Wear Saree - Blue",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D015",
+          "title": "Women's Cotton Handloom Saree - Red",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              18,
+              19
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D025",
+          "title": "Women's Printed Daily Wear Saree - Maroon",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D035",
+          "title": "Women's Cotton Handloom Saree - Yellow",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              18,
+              19
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D045",
+          "title": "Women's Printed Daily Wear Saree - Purple",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D055",
+          "title": "Women's Cotton Handloom Saree - Pink",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              18,
+              19
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D065",
+          "title": "Women's Printed Daily Wear Saree - Green",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D075",
+          "title": "Women's Cotton Handloom Saree - Blue",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              18,
+              19
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D085",
+          "title": "Women's Printed Daily Wear Saree - Red",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D095",
+          "title": "Women's Cotton Handloom Saree - Maroon",
+          "category": "Saree",
+          "matching_positions": [
+            [
+              18,
+              19
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    },
+    {
+      "phrase": "winter wear",
+      "normalized_terms": [
+        "winter",
+        "wear"
+      ],
+      "num_matches": 20,
+      "matching_docIDs": [
+        "D008",
+        "D010",
+        "D018",
+        "D020",
+        "D028",
+        "D030",
+        "D038",
+        "D040",
+        "D048",
+        "D050",
+        "D058",
+        "D060",
+        "D068",
+        "D070",
+        "D078",
+        "D080",
+        "D088",
+        "D090",
+        "D098",
+        "D100"
+      ],
+      "matches": [
+        {
+          "docID": "D008",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D010",
+          "title": "Women's Fleece Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              17,
+              18
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D020",
+          "title": "Men's Regular Fit Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D028",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D030",
+          "title": "Women's Fleece Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              17,
+              18
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D040",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D048",
+          "title": "Women's Casual Puffer Jacket - Beige",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D050",
+          "title": "Women's Fleece Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D060",
+          "title": "Men's Regular Fit Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D068",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D070",
+          "title": "Women's Fleece Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              17,
+              18
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D080",
+          "title": "Men's Regular Fit Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D088",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              20,
+              21
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D090",
+          "title": "Women's Fleece Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              17,
+              18
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D098",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D100",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    },
+    {
+      "phrase": "regular fit",
+      "normalized_terms": [
+        "regular",
+        "fit"
+      ],
+      "num_matches": 15,
+      "matching_docIDs": [
+        "D003",
+        "D004",
+        "D020",
+        "D023",
+        "D024",
+        "D040",
+        "D043",
+        "D044",
+        "D060",
+        "D063",
+        "D064",
+        "D080",
+        "D083",
+        "D084",
+        "D100"
+      ],
+      "matches": [
+        {
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D004",
+          "title": "Men's Regular Fit Kurta - Pink",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D020",
+          "title": "Men's Regular Fit Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D023",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D024",
+          "title": "Men's Regular Fit Kurta - Teal",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D040",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D044",
+          "title": "Men's Regular Fit Kurta - Navy Blue",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D060",
+          "title": "Men's Regular Fit Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D064",
+          "title": "Men's Regular Fit Kurta - White",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D080",
+          "title": "Men's Regular Fit Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D083",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D084",
+          "title": "Men's Regular Fit Kurta - Beige",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D100",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    },
+    {
+      "phrase": "high waist",
+      "normalized_terms": [
+        "high",
+        "waist"
+      ],
+      "num_matches": 10,
+      "matching_docIDs": [
+        "D009",
+        "D019",
+        "D029",
+        "D039",
+        "D049",
+        "D059",
+        "D069",
+        "D079",
+        "D089",
+        "D099"
+      ],
+      "matches": [
+        {
+          "docID": "D009",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              8,
+              9
+            ],
+            [
+              25,
+              26
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D019",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D029",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              23,
+              24
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D039",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              23,
+              24
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D049",
+          "title": "Women's High Waist Stretch Leggings - Black",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              23,
+              24
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D059",
+          "title": "Women's Printed Active Leggings - Grey",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D069",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              8,
+              9
+            ],
+            [
+              25,
+              26
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D079",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D089",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              23,
+              24
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D099",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "matching_positions": [
+            [
+              23,
+              24
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    },
+    {
+      "phrase": "breathable fabric",
+      "normalized_terms": [
+        "breathabl",
+        "fabric"
+      ],
+      "num_matches": 20,
+      "matching_docIDs": [
+        "D001",
+        "D004",
+        "D011",
+        "D014",
+        "D021",
+        "D024",
+        "D031",
+        "D034",
+        "D041",
+        "D044",
+        "D051",
+        "D054",
+        "D061",
+        "D064",
+        "D071",
+        "D074",
+        "D081",
+        "D084",
+        "D091",
+        "D094"
+      ],
+      "matches": [
+        {
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D004",
+          "title": "Men's Regular Fit Kurta - Pink",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D011",
+          "title": "Men's Oversized Graphic T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D014",
+          "title": "Women's Printed Straight Kurta - Beige",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              23,
+              24
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D024",
+          "title": "Men's Regular Fit Kurta - Teal",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D031",
+          "title": "Men's Oversized Graphic T-Shirt - Olive Green",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D034",
+          "title": "Women's Printed Straight Kurta - Maroon",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D044",
+          "title": "Men's Regular Fit Kurta - Navy Blue",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D051",
+          "title": "Men's Oversized Graphic T-Shirt - Navy Blue",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D054",
+          "title": "Women's Printed Straight Kurta - Mustard",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D064",
+          "title": "Men's Regular Fit Kurta - White",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D071",
+          "title": "Men's Oversized Graphic T-Shirt - Black",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D074",
+          "title": "Women's Printed Straight Kurta - Pink",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D084",
+          "title": "Men's Regular Fit Kurta - Beige",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D091",
+          "title": "Men's Oversized Graphic T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "matching_positions": [
+            [
+              21,
+              22
+            ]
+          ],
+          "all_matches_consecutive": true
+        },
+        {
+          "docID": "D094",
+          "title": "Women's Printed Straight Kurta - Teal",
+          "category": "Kurta",
+          "matching_positions": [
+            [
+              19,
+              20
+            ]
+          ],
+          "all_matches_consecutive": true
+        }
+      ]
+    }
+  ],
+  "proximity_queries": [
+    {
+      "query": "cotton WITHIN/3 shirt",
+      "term1": "cotton",
+      "term2": "shirt",
+      "k": 3,
+      "ordered": true,
+      "definition": "0 < p2 - p1 <= k  (term1 before term2)",
+      "num_matches": 15,
+      "matching_docIDs": [
+        "D001",
+        "D002",
+        "D011",
+        "D021",
+        "D022",
+        "D031",
+        "D041",
+        "D042",
+        "D051",
+        "D061",
+        "D062",
+        "D071",
+        "D081",
+        "D082",
+        "D091"
+      ],
+      "matches": [
+        {
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "term1_positions": [
+            1,
+            7,
+            14
+          ],
+          "term2_positions": [
+            4,
+            10,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              4
+            ],
+            [
+              7,
+              10
+            ],
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D002",
+          "title": "Men's Checked Cotton Shirt - Black",
+          "category": "Shirt",
+          "term1_positions": [
+            2,
+            7
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D011",
+          "title": "Men's Oversized Graphic T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "term1_positions": [
+            11
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              11,
+              13
+            ]
+          ],
+          "min_gap": 2,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "term1_positions": [
+            1,
+            8,
+            16
+          ],
+          "term2_positions": [
+            4,
+            11,
+            17
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              4
+            ],
+            [
+              8,
+              11
+            ],
+            [
+              16,
+              17
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "term1_positions": [
+            2,
+            7
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D031",
+          "title": "Men's Oversized Graphic T-Shirt - Olive Green",
+          "category": "T-Shirt",
+          "term1_positions": [
+            13
+          ],
+          "term2_positions": [
+            3,
+            9,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              13,
+              15
+            ]
+          ],
+          "min_gap": 2,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "term1_positions": [
+            1,
+            7,
+            14
+          ],
+          "term2_positions": [
+            4,
+            10,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              4
+            ],
+            [
+              7,
+              10
+            ],
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D042",
+          "title": "Men's Checked Cotton Shirt - Maroon",
+          "category": "Shirt",
+          "term1_positions": [
+            2,
+            7
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D051",
+          "title": "Men's Oversized Graphic T-Shirt - Navy Blue",
+          "category": "T-Shirt",
+          "term1_positions": [
+            13
+          ],
+          "term2_positions": [
+            3,
+            9,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              13,
+              15
+            ]
+          ],
+          "min_gap": 2,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "term1_positions": [
+            1,
+            7,
+            14
+          ],
+          "term2_positions": [
+            4,
+            10,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              4
+            ],
+            [
+              7,
+              10
+            ],
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D062",
+          "title": "Men's Checked Cotton Shirt - Olive",
+          "category": "Shirt",
+          "term1_positions": [
+            2,
+            7
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D071",
+          "title": "Men's Oversized Graphic T-Shirt - Black",
+          "category": "T-Shirt",
+          "term1_positions": [
+            11
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              11,
+              13
+            ]
+          ],
+          "min_gap": 2,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "term1_positions": [
+            1,
+            7,
+            14
+          ],
+          "term2_positions": [
+            4,
+            10,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              4
+            ],
+            [
+              7,
+              10
+            ],
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "term1_positions": [
+            2,
+            7
+          ],
+          "term2_positions": [
+            3,
+            8,
+            13
+          ],
+          "satisfying_pairs": [
+            [
+              2,
+              3
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D091",
+          "title": "Men's Oversized Graphic T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "term1_positions": [
+            13
+          ],
+          "term2_positions": [
+            3,
+            9,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              13,
+              15
+            ]
+          ],
+          "min_gap": 2,
+          "all_pairs_within_k": true
+        }
+      ]
+    },
+    {
+      "query": "stretch WITHIN/4 denim",
+      "term1": "stretch",
+      "term2": "denim",
+      "k": 4,
+      "ordered": true,
+      "definition": "0 < p2 - p1 <= k  (term1 before term2)",
+      "num_matches": 7,
+      "matching_docIDs": [
+        "D003",
+        "D013",
+        "D033",
+        "D043",
+        "D063",
+        "D073",
+        "D093"
+      ],
+      "matches": [
+        {
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            14
+          ],
+          "term2_positions": [
+            3,
+            9,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            3,
+            9,
+            13
+          ],
+          "term2_positions": [
+            14
+          ],
+          "satisfying_pairs": [
+            [
+              13,
+              14
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            3,
+            9,
+            14
+          ],
+          "term2_positions": [
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            13
+          ],
+          "term2_positions": [
+            3,
+            9,
+            14
+          ],
+          "satisfying_pairs": [
+            [
+              13,
+              14
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            14
+          ],
+          "term2_positions": [
+            3,
+            9,
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            3,
+            9,
+            13
+          ],
+          "term2_positions": [
+            14
+          ],
+          "satisfying_pairs": [
+            [
+              13,
+              14
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            3,
+            9,
+            14
+          ],
+          "term2_positions": [
+            15
+          ],
+          "satisfying_pairs": [
+            [
+              14,
+              15
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        }
+      ]
+    },
+    {
+      "query": "winter WITHIN/2 wear",
+      "term1": "winter",
+      "term2": "wear",
+      "k": 2,
+      "ordered": true,
+      "definition": "0 < p2 - p1 <= k  (term1 before term2)",
+      "num_matches": 20,
+      "matching_docIDs": [
+        "D008",
+        "D010",
+        "D018",
+        "D020",
+        "D028",
+        "D030",
+        "D038",
+        "D040",
+        "D048",
+        "D050",
+        "D058",
+        "D060",
+        "D068",
+        "D070",
+        "D078",
+        "D080",
+        "D088",
+        "D090",
+        "D098",
+        "D100"
+      ],
+      "matches": [
+        {
+          "docID": "D008",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "term1_positions": [
+            20
+          ],
+          "term2_positions": [
+            17,
+            21
+          ],
+          "satisfying_pairs": [
+            [
+              20,
+              21
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D010",
+          "title": "Women's Fleece Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            17
+          ],
+          "term2_positions": [
+            15,
+            18
+          ],
+          "satisfying_pairs": [
+            [
+              17,
+              18
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "term1_positions": [
+            2,
+            7,
+            19
+          ],
+          "term2_positions": [
+            16,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D020",
+          "title": "Men's Regular Fit Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            19,
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D028",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "term1_positions": [
+            20
+          ],
+          "term2_positions": [
+            17,
+            21
+          ],
+          "satisfying_pairs": [
+            [
+              20,
+              21
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D030",
+          "title": "Women's Fleece Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            17
+          ],
+          "term2_positions": [
+            15,
+            18
+          ],
+          "satisfying_pairs": [
+            [
+              17,
+              18
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "term1_positions": [
+            2,
+            7,
+            19
+          ],
+          "term2_positions": [
+            16,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D040",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            19
+          ],
+          "term2_positions": [
+            17,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D048",
+          "title": "Women's Casual Puffer Jacket - Beige",
+          "category": "Jacket",
+          "term1_positions": [
+            20
+          ],
+          "term2_positions": [
+            17,
+            21
+          ],
+          "satisfying_pairs": [
+            [
+              20,
+              21
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D050",
+          "title": "Women's Fleece Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            19
+          ],
+          "term2_positions": [
+            17,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "term1_positions": [
+            2,
+            7,
+            19
+          ],
+          "term2_positions": [
+            16,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D060",
+          "title": "Men's Regular Fit Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            19
+          ],
+          "term2_positions": [
+            17,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D068",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "term1_positions": [
+            20
+          ],
+          "term2_positions": [
+            17,
+            21
+          ],
+          "satisfying_pairs": [
+            [
+              20,
+              21
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D070",
+          "title": "Women's Fleece Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            17
+          ],
+          "term2_positions": [
+            15,
+            18
+          ],
+          "satisfying_pairs": [
+            [
+              17,
+              18
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "term1_positions": [
+            2,
+            7,
+            19
+          ],
+          "term2_positions": [
+            16,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D080",
+          "title": "Men's Regular Fit Sweatshirt - Navy Blue",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            19,
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D088",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "term1_positions": [
+            20
+          ],
+          "term2_positions": [
+            17,
+            21
+          ],
+          "satisfying_pairs": [
+            [
+              20,
+              21
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D090",
+          "title": "Women's Fleece Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            17
+          ],
+          "term2_positions": [
+            15,
+            18
+          ],
+          "satisfying_pairs": [
+            [
+              17,
+              18
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D098",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "term1_positions": [
+            2,
+            7,
+            19
+          ],
+          "term2_positions": [
+            16,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D100",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "term1_positions": [
+            19
+          ],
+          "term2_positions": [
+            17,
+            20
+          ],
+          "satisfying_pairs": [
+            [
+              19,
+              20
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        }
+      ]
+    },
+    {
+      "query": "high WITHIN/1 waist",
+      "term1": "high",
+      "term2": "waist",
+      "k": 1,
+      "ordered": true,
+      "definition": "0 < p2 - p1 <= k  (term1 before term2)",
+      "num_matches": 10,
+      "matching_docIDs": [
+        "D009",
+        "D019",
+        "D029",
+        "D039",
+        "D049",
+        "D059",
+        "D069",
+        "D079",
+        "D089",
+        "D099"
+      ],
+      "matches": [
+        {
+          "docID": "D009",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "term1_positions": [
+            1,
+            8,
+            25
+          ],
+          "term2_positions": [
+            2,
+            9,
+            26
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              8,
+              9
+            ],
+            [
+              25,
+              26
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D019",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D029",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "term1_positions": [
+            1,
+            7,
+            23
+          ],
+          "term2_positions": [
+            2,
+            8,
+            24
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              23,
+              24
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D039",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "term1_positions": [
+            23
+          ],
+          "term2_positions": [
+            24
+          ],
+          "satisfying_pairs": [
+            [
+              23,
+              24
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D049",
+          "title": "Women's High Waist Stretch Leggings - Black",
+          "category": "Leggings",
+          "term1_positions": [
+            1,
+            7,
+            23
+          ],
+          "term2_positions": [
+            2,
+            8,
+            24
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              23,
+              24
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D059",
+          "title": "Women's Printed Active Leggings - Grey",
+          "category": "Leggings",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D069",
+          "title": "Women's High Waist Stretch Leggings - Olive Green",
+          "category": "Leggings",
+          "term1_positions": [
+            1,
+            8,
+            25
+          ],
+          "term2_positions": [
+            2,
+            9,
+            26
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              8,
+              9
+            ],
+            [
+              25,
+              26
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D079",
+          "title": "Women's Printed Active Leggings - Black",
+          "category": "Leggings",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D089",
+          "title": "Women's High Waist Stretch Leggings - Grey",
+          "category": "Leggings",
+          "term1_positions": [
+            1,
+            7,
+            23
+          ],
+          "term2_positions": [
+            2,
+            8,
+            24
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              23,
+              24
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D099",
+          "title": "Women's Printed Active Leggings - Olive Green",
+          "category": "Leggings",
+          "term1_positions": [
+            23
+          ],
+          "term2_positions": [
+            24
+          ],
+          "satisfying_pairs": [
+            [
+              23,
+              24
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        }
+      ]
+    },
+    {
+      "query": "slim WITHIN/3 fit",
+      "term1": "slim",
+      "term2": "fit",
+      "k": 3,
+      "ordered": true,
+      "definition": "0 < p2 - p1 <= k  (term1 before term2)",
+      "num_matches": 15,
+      "matching_docIDs": [
+        "D002",
+        "D012",
+        "D013",
+        "D022",
+        "D032",
+        "D033",
+        "D042",
+        "D052",
+        "D053",
+        "D062",
+        "D072",
+        "D073",
+        "D082",
+        "D092",
+        "D093"
+      ],
+      "matches": [
+        {
+          "docID": "D002",
+          "title": "Men's Checked Cotton Shirt - Black",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D012",
+          "title": "Women's Striped Casual Shirt - Blue",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D013",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            1,
+            7
+          ],
+          "term2_positions": [
+            2,
+            8
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D032",
+          "title": "Women's Striped Casual Shirt - Light Pink",
+          "category": "Shirt",
+          "term1_positions": [
+            23
+          ],
+          "term2_positions": [
+            24
+          ],
+          "satisfying_pairs": [
+            [
+              23,
+              24
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D033",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            1,
+            7
+          ],
+          "term2_positions": [
+            2,
+            8
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D042",
+          "title": "Men's Checked Cotton Shirt - Maroon",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D052",
+          "title": "Women's Striped Casual Shirt - Beige",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D053",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            1,
+            7
+          ],
+          "term2_positions": [
+            2,
+            8
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D062",
+          "title": "Men's Checked Cotton Shirt - Olive",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D072",
+          "title": "Women's Striped Casual Shirt - Black",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D073",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            1,
+            7
+          ],
+          "term2_positions": [
+            2,
+            8
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D092",
+          "title": "Women's Striped Casual Shirt - White",
+          "category": "Shirt",
+          "term1_positions": [
+            21
+          ],
+          "term2_positions": [
+            22
+          ],
+          "satisfying_pairs": [
+            [
+              21,
+              22
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        },
+        {
+          "docID": "D093",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "term1_positions": [
+            1,
+            7
+          ],
+          "term2_positions": [
+            2,
+            8
+          ],
+          "satisfying_pairs": [
+            [
+              1,
+              2
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "min_gap": 1,
+          "all_pairs_within_k": true
+        }
+      ]
+    }
+  ],
+  "unknown_term_query": {
+    "note": "Absent terms have no df/postings, so they contribute no VSM weight, cannot form a phrase, and cannot form a proximity pair. Retrieval returns cleanly (empty when every content term is absent) and never crashes. Results below are produced live.",
+    "queries": [
+      {
+        "query": "corduroy blazer",
+        "normalized_terms": [
+          "corduroy",
+          "blazer"
+        ],
+        "known_terms": [],
+        "unknown_terms": [
+          "corduroy",
+          "blazer"
+        ],
+        "vsm_num_results": 0,
+        "vsm_top_results": [],
+        "vsm_scores_in_valid_range": true,
+        "phrase_search_num_results": 0,
+        "proximity_num_results": 0,
+        "crashed": false
+      },
+      {
+        "query": "cotton corduroy",
+        "normalized_terms": [
+          "cotton",
+          "corduroy"
+        ],
+        "known_terms": [
+          "cotton"
+        ],
+        "unknown_terms": [
+          "corduroy"
+        ],
+        "vsm_num_results": 10,
+        "vsm_top_results": [
+          {
+            "docID": "D001",
+            "category": "T-Shirt",
+            "cosine": 0.21544
+          },
+          {
+            "docID": "D041",
+            "category": "T-Shirt",
+            "cosine": 0.21544
+          },
+          {
+            "docID": "D061",
+            "category": "T-Shirt",
+            "cosine": 0.21544
+          },
+          {
+            "docID": "D081",
+            "category": "T-Shirt",
+            "cosine": 0.213184
+          },
+          {
+            "docID": "D021",
+            "category": "T-Shirt",
+            "cosine": 0.208499
+          },
+          {
+            "docID": "D022",
+            "category": "Shirt",
+            "cosine": 0.19349
+          },
+          {
+            "docID": "D035",
+            "category": "Saree",
+            "cosine": 0.19349
+          },
+          {
+            "docID": "D055",
+            "category": "Saree",
+            "cosine": 0.19349
+          },
+          {
+            "docID": "D082",
+            "category": "Shirt",
+            "cosine": 0.19349
+          },
+          {
+            "docID": "D095",
+            "category": "Saree",
+            "cosine": 0.19349
+          }
+        ],
+        "vsm_scores_in_valid_range": true,
+        "phrase_search_num_results": 0,
+        "proximity_num_results": 0,
+        "crashed": false
+      }
+    ]
+  },
+  "reranking_comparisons": [
+    {
+      "query": "cotton denim",
+      "alpha": 0.15,
+      "candidate_k": 20,
+      "changed": true,
+      "baseline_order": [
+        "D023",
+        "D083",
+        "D043",
+        "D003",
+        "D063",
+        "D053",
+        "D058",
+        "D018",
+        "D078",
+        "D038"
+      ],
+      "reranked_order": [
+        "D023",
+        "D083",
+        "D053",
+        "D043",
+        "D003",
+        "D063",
+        "D058",
+        "D018",
+        "D078",
+        "D038"
+      ],
+      "documents_whose_rank_changed": [
+        "D053",
+        "D043",
+        "D003",
+        "D063"
+      ],
+      "rows": [
+        {
+          "docID": "D023",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "baseline_rank": 1,
+          "reranked_rank": 1,
+          "cosine_score": 0.247655,
+          "proximity_bonus": 0.5,
+          "final_score": 0.322655,
+          "rank_changed": false
+        },
+        {
+          "docID": "D083",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "baseline_rank": 2,
+          "reranked_rank": 2,
+          "cosine_score": 0.247655,
+          "proximity_bonus": 0.5,
+          "final_score": 0.322655,
+          "rank_changed": false
+        },
+        {
+          "docID": "D053",
+          "title": "Men's Slim Fit Stretch Jeans - Grey",
+          "category": "Jeans",
+          "baseline_rank": 6,
+          "reranked_rank": 3,
+          "cosine_score": 0.178743,
+          "proximity_bonus": 0.5,
+          "final_score": 0.253743,
+          "rank_changed": true
+        },
+        {
+          "docID": "D043",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "baseline_rank": 3,
+          "reranked_rank": 4,
+          "cosine_score": 0.206003,
+          "proximity_bonus": 0.0,
+          "final_score": 0.206003,
+          "rank_changed": true
+        },
+        {
+          "docID": "D003",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "baseline_rank": 4,
+          "reranked_rank": 5,
+          "cosine_score": 0.202428,
+          "proximity_bonus": 0.0,
+          "final_score": 0.202428,
+          "rank_changed": true
+        },
+        {
+          "docID": "D063",
+          "title": "Men's Regular Fit Denim Jeans - Grey",
+          "category": "Jeans",
+          "baseline_rank": 5,
+          "reranked_rank": 6,
+          "cosine_score": 0.202428,
+          "proximity_bonus": 0.0,
+          "final_score": 0.202428,
+          "rank_changed": true
+        },
+        {
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 7,
+          "reranked_rank": 7,
+          "cosine_score": 0.145908,
+          "proximity_bonus": 0.0,
+          "final_score": 0.145908,
+          "rank_changed": false
+        },
+        {
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 8,
+          "reranked_rank": 8,
+          "cosine_score": 0.144886,
+          "proximity_bonus": 0.0,
+          "final_score": 0.144886,
+          "rank_changed": false
+        },
+        {
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 9,
+          "reranked_rank": 9,
+          "cosine_score": 0.144886,
+          "proximity_bonus": 0.0,
+          "final_score": 0.144886,
+          "rank_changed": false
+        },
+        {
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 10,
+          "reranked_rank": 10,
+          "cosine_score": 0.143267,
+          "proximity_bonus": 0.0,
+          "final_score": 0.143267,
+          "rank_changed": false
+        }
+      ]
+    },
+    {
+      "query": "regular winter",
+      "alpha": 0.15,
+      "candidate_k": 20,
+      "changed": true,
+      "baseline_order": [
+        "D058",
+        "D018",
+        "D078",
+        "D038",
+        "D098",
+        "D010",
+        "D070",
+        "D028",
+        "D088",
+        "D030"
+      ],
+      "reranked_order": [
+        "D058",
+        "D018",
+        "D078",
+        "D038",
+        "D098",
+        "D040",
+        "D100",
+        "D060",
+        "D028",
+        "D088"
+      ],
+      "documents_whose_rank_changed": [
+        "D040",
+        "D100",
+        "D060",
+        "D028",
+        "D088"
+      ],
+      "rows": [
+        {
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 1,
+          "reranked_rank": 1,
+          "cosine_score": 0.224233,
+          "proximity_bonus": 0.041667,
+          "final_score": 0.230483,
+          "rank_changed": false
+        },
+        {
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 2,
+          "reranked_rank": 2,
+          "cosine_score": 0.222661,
+          "proximity_bonus": 0.041667,
+          "final_score": 0.228911,
+          "rank_changed": false
+        },
+        {
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 3,
+          "reranked_rank": 3,
+          "cosine_score": 0.222661,
+          "proximity_bonus": 0.041667,
+          "final_score": 0.228911,
+          "rank_changed": false
+        },
+        {
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 4,
+          "reranked_rank": 4,
+          "cosine_score": 0.220174,
+          "proximity_bonus": 0.04,
+          "final_score": 0.226174,
+          "rank_changed": false
+        },
+        {
+          "docID": "D098",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 5,
+          "reranked_rank": 5,
+          "cosine_score": 0.220174,
+          "proximity_bonus": 0.04,
+          "final_score": 0.226174,
+          "rank_changed": false
+        },
+        {
+          "docID": "D040",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "baseline_rank": null,
+          "reranked_rank": 6,
+          "cosine_score": 0.148422,
+          "proximity_bonus": 0.071429,
+          "final_score": 0.159136,
+          "rank_changed": true
+        },
+        {
+          "docID": "D100",
+          "title": "Men's Regular Fit Sweatshirt - Black",
+          "category": "Sweatshirt",
+          "baseline_rank": null,
+          "reranked_rank": 7,
+          "cosine_score": 0.148422,
+          "proximity_bonus": 0.071429,
+          "final_score": 0.159136,
+          "rank_changed": true
+        },
+        {
+          "docID": "D060",
+          "title": "Men's Regular Fit Sweatshirt - Maroon",
+          "category": "Sweatshirt",
+          "baseline_rank": null,
+          "reranked_rank": 8,
+          "cosine_score": 0.147427,
+          "proximity_bonus": 0.071429,
+          "final_score": 0.158142,
+          "rank_changed": true
+        },
+        {
+          "docID": "D028",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 8,
+          "reranked_rank": 9,
+          "cosine_score": 0.150084,
+          "proximity_bonus": 0.041667,
+          "final_score": 0.156334,
+          "rank_changed": true
+        },
+        {
+          "docID": "D088",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 9,
+          "reranked_rank": 10,
+          "cosine_score": 0.150084,
+          "proximity_bonus": 0.041667,
+          "final_score": 0.156334,
+          "rank_changed": true
+        }
+      ]
+    },
+    {
+      "query": "jacket festive",
+      "alpha": 0.15,
+      "candidate_k": 20,
+      "changed": true,
+      "baseline_order": [
+        "D058",
+        "D018",
+        "D078",
+        "D028",
+        "D088",
+        "D038",
+        "D048",
+        "D098",
+        "D008",
+        "D068"
+      ],
+      "reranked_order": [
+        "D058",
+        "D018",
+        "D078",
+        "D028",
+        "D088",
+        "D048",
+        "D038",
+        "D098",
+        "D008",
+        "D068"
+      ],
+      "documents_whose_rank_changed": [
+        "D048",
+        "D038"
+      ],
+      "rows": [
+        {
+          "docID": "D058",
+          "title": "Women's Quilted Winter Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 1,
+          "reranked_rank": 1,
+          "cosine_score": 0.224233,
+          "proximity_bonus": 0.052632,
+          "final_score": 0.232128,
+          "rank_changed": false
+        },
+        {
+          "docID": "D018",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 2,
+          "reranked_rank": 2,
+          "cosine_score": 0.222661,
+          "proximity_bonus": 0.052632,
+          "final_score": 0.230556,
+          "rank_changed": false
+        },
+        {
+          "docID": "D078",
+          "title": "Women's Quilted Winter Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 3,
+          "reranked_rank": 3,
+          "cosine_score": 0.222661,
+          "proximity_bonus": 0.052632,
+          "final_score": 0.230556,
+          "rank_changed": false
+        },
+        {
+          "docID": "D028",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 4,
+          "reranked_rank": 4,
+          "cosine_score": 0.221693,
+          "proximity_bonus": 0.052632,
+          "final_score": 0.229588,
+          "rank_changed": false
+        },
+        {
+          "docID": "D088",
+          "title": "Women's Casual Puffer Jacket - Black",
+          "category": "Jacket",
+          "baseline_rank": 5,
+          "reranked_rank": 5,
+          "cosine_score": 0.221693,
+          "proximity_bonus": 0.052632,
+          "final_score": 0.229588,
+          "rank_changed": false
+        },
+        {
+          "docID": "D048",
+          "title": "Women's Casual Puffer Jacket - Beige",
+          "category": "Jacket",
+          "baseline_rank": 7,
+          "reranked_rank": 6,
+          "cosine_score": 0.220174,
+          "proximity_bonus": 0.052632,
+          "final_score": 0.228069,
+          "rank_changed": true
+        },
+        {
+          "docID": "D038",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 6,
+          "reranked_rank": 7,
+          "cosine_score": 0.220174,
+          "proximity_bonus": 0.05,
+          "final_score": 0.227674,
+          "rank_changed": true
+        },
+        {
+          "docID": "D098",
+          "title": "Women's Quilted Winter Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 8,
+          "reranked_rank": 8,
+          "cosine_score": 0.220174,
+          "proximity_bonus": 0.05,
+          "final_score": 0.227674,
+          "rank_changed": false
+        },
+        {
+          "docID": "D008",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 9,
+          "reranked_rank": 9,
+          "cosine_score": 0.217768,
+          "proximity_bonus": 0.05,
+          "final_score": 0.225268,
+          "rank_changed": false
+        },
+        {
+          "docID": "D068",
+          "title": "Women's Casual Puffer Jacket - Olive",
+          "category": "Jacket",
+          "baseline_rank": 10,
+          "reranked_rank": 10,
+          "cosine_score": 0.217768,
+          "proximity_bonus": 0.05,
+          "final_score": 0.225268,
+          "rank_changed": false
+        }
+      ]
+    },
+    {
+      "query": "cotton shirt",
+      "alpha": 0.15,
+      "candidate_k": 20,
+      "changed": false,
+      "baseline_order": [
+        "D001",
+        "D041",
+        "D061",
+        "D081",
+        "D022",
+        "D082",
+        "D042",
+        "D002",
+        "D062",
+        "D021"
+      ],
+      "reranked_order": [
+        "D001",
+        "D041",
+        "D061",
+        "D081",
+        "D022",
+        "D082",
+        "D042",
+        "D002",
+        "D062",
+        "D021"
+      ],
+      "documents_whose_rank_changed": [],
+      "rows": [
+        {
+          "docID": "D001",
+          "title": "Men's Cotton Crew Neck T-Shirt - Black",
+          "category": "T-Shirt",
+          "baseline_rank": 1,
+          "reranked_rank": 1,
+          "cosine_score": 0.273136,
+          "proximity_bonus": 0.5,
+          "final_score": 0.348136,
+          "rank_changed": false
+        },
+        {
+          "docID": "D041",
+          "title": "Men's Cotton Crew Neck T-Shirt - Maroon",
+          "category": "T-Shirt",
+          "baseline_rank": 2,
+          "reranked_rank": 2,
+          "cosine_score": 0.273136,
+          "proximity_bonus": 0.5,
+          "final_score": 0.348136,
+          "rank_changed": false
+        },
+        {
+          "docID": "D061",
+          "title": "Men's Cotton Crew Neck T-Shirt - White",
+          "category": "T-Shirt",
+          "baseline_rank": 3,
+          "reranked_rank": 3,
+          "cosine_score": 0.273136,
+          "proximity_bonus": 0.5,
+          "final_score": 0.348136,
+          "rank_changed": false
+        },
+        {
+          "docID": "D081",
+          "title": "Men's Cotton Crew Neck T-Shirt - Mustard",
+          "category": "T-Shirt",
+          "baseline_rank": 4,
+          "reranked_rank": 4,
+          "cosine_score": 0.270277,
+          "proximity_bonus": 0.5,
+          "final_score": 0.345277,
+          "rank_changed": false
+        },
+        {
+          "docID": "D022",
+          "title": "Men's Checked Cotton Shirt - White",
+          "category": "Shirt",
+          "baseline_rank": 5,
+          "reranked_rank": 5,
+          "cosine_score": 0.270114,
+          "proximity_bonus": 0.5,
+          "final_score": 0.345114,
+          "rank_changed": false
+        },
+        {
+          "docID": "D082",
+          "title": "Men's Checked Cotton Shirt - Blue",
+          "category": "Shirt",
+          "baseline_rank": 6,
+          "reranked_rank": 6,
+          "cosine_score": 0.270114,
+          "proximity_bonus": 0.5,
+          "final_score": 0.345114,
+          "rank_changed": false
+        },
+        {
+          "docID": "D042",
+          "title": "Men's Checked Cotton Shirt - Maroon",
+          "category": "Shirt",
+          "baseline_rank": 7,
+          "reranked_rank": 7,
+          "cosine_score": 0.268297,
+          "proximity_bonus": 0.5,
+          "final_score": 0.343297,
+          "rank_changed": false
+        },
+        {
+          "docID": "D002",
+          "title": "Men's Checked Cotton Shirt - Black",
+          "category": "Shirt",
+          "baseline_rank": 8,
+          "reranked_rank": 8,
+          "cosine_score": 0.265417,
+          "proximity_bonus": 0.5,
+          "final_score": 0.340417,
+          "rank_changed": false
+        },
+        {
+          "docID": "D062",
+          "title": "Men's Checked Cotton Shirt - Olive",
+          "category": "Shirt",
+          "baseline_rank": 9,
+          "reranked_rank": 9,
+          "cosine_score": 0.265417,
+          "proximity_bonus": 0.5,
+          "final_score": 0.340417,
+          "rank_changed": false
+        },
+        {
+          "docID": "D021",
+          "title": "Men's Cotton Crew Neck T-Shirt - Sky Blue",
+          "category": "T-Shirt",
+          "baseline_rank": 10,
+          "reranked_rank": 10,
+          "cosine_score": 0.264337,
+          "proximity_bonus": 0.5,
+          "final_score": 0.339337,
+          "rank_changed": false
+        }
+      ]
+    }
+  ],
+  "positional_analysis": {
+    "case_a_phrase_vs_cooccurrence": {
+      "case": "A — exact phrase vs ordinary term co-occurrence",
+      "phrase": "cotton shirt",
+      "normalized_terms": [
+        "cotton",
+        "shirt"
+      ],
+      "num_cooccurrence_docs": 15,
+      "num_phrase_match_docs": 10,
+      "cooccurrence_only_docs": [
+        "D011",
+        "D031",
+        "D051",
+        "D071",
+        "D091"
+      ],
+      "example_cooccurrence_only": {
+        "docID": "D011",
+        "title": "Men's Oversized Graphic T-Shirt - Mustard",
+        "category": "T-Shirt",
+        "term_positions": {
+          "cotton": [
+            11
+          ],
+          "shirt": [
+            3,
+            8,
+            13
+          ]
+        },
+        "min_forward_gap_between_terms": 2,
+        "explanation": "D011 contains all of ['cotton', 'shirt'] but never as the adjacent phrase (closest forward gap = 2 > 1), so plain VSM/boolean co-occurrence would return it while exact positional phrase search correctly excludes it."
+      },
+      "example_true_phrase_match": {
+        "docID": "D001",
+        "matching_positions": [
+          [
+            14,
+            15
+          ]
+        ],
+        "explanation": "D001 DOES contain ['cotton', 'shirt'] at consecutive positions (step +1), so it is a genuine phrase match."
+      }
+    },
+    "case_b_proximity_reranking": {
+      "case": "B — proximity-aware re-ranking",
+      "query": "cotton denim",
+      "baseline_order": [
+        "D023",
+        "D083",
+        "D043",
+        "D003",
+        "D063",
+        "D053",
+        "D058",
+        "D018",
+        "D078",
+        "D038"
+      ],
+      "reranked_order": [
+        "D023",
+        "D083",
+        "D053",
+        "D043",
+        "D003",
+        "D063",
+        "D058",
+        "D018",
+        "D078",
+        "D038"
+      ],
+      "risen_document": {
+        "docID": "D053",
+        "title": "Men's Slim Fit Stretch Jeans - Grey",
+        "category": "Jeans",
+        "baseline_rank": 6,
+        "reranked_rank": 3,
+        "cosine_score": 0.178743,
+        "proximity_bonus": 0.5,
+        "final_score": 0.253743,
+        "closest_pair": {
+          "terms": [
+            "cotton",
+            "denim"
+          ],
+          "min_gap": 1,
+          "pair_bonus": 0.5
+        },
+        "term_positions": {
+          "cotton": [
+            13
+          ],
+          "denim": [
+            14
+          ]
+        }
+      },
+      "overtaken_document": {
+        "docID": "D043",
+        "title": "Men's Regular Fit Denim Jeans - Grey",
+        "category": "Jeans",
+        "baseline_rank": 3,
+        "reranked_rank": 4,
+        "cosine_score": 0.206003,
+        "proximity_bonus": 0.0,
+        "final_score": 0.206003
+      },
+      "explanation": "For query 'cotton denim', D053 has cosine 0.1787 with the query terms close together (cotton/denim gap 1), earning proximity bonus 0.5000. With alpha=0.15 its final score 0.2537 lifts it from baseline rank 6 to reranked rank 3, overtaking D043 (higher cosine 0.2060 but proximity bonus 0.0000)."
+    }
+  }
+}

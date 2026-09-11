@@ -273,3 +273,77 @@ the algorithm internals. I updated the README with a plainly-worded "Novelty:
 Proximity-Aware Re-Ranking" section that describes it accurately as a
 project-level enhancement and explicitly does not claim it is new research or a
 universal improvement.
+
+## Entry 7 — Part E: evaluation, testing, and analysis
+
+I implemented the complete Part E evaluation layer. Before writing anything I
+re-read the existing modules and confirmed the real APIs
+(`preprocess_text`, `query_vsm`/`VectorSpaceModel`, `phrase_search`/
+`proximity_search`, `rerank_with_proximity`/`compare_baseline_and_reranked`)
+and their data shapes, so the harness only *drives* the code that already
+exists and re-implements none of it. The old `tests/run_evaluation.py` was a
+pure placeholder, so rather than duplicate it I put the real logic in
+`src/evaluate.py` and turned `run_evaluation.py` into a thin wrapper that calls
+`src.evaluate.main`.
+
+**Files changed:** added `src/evaluate.py` (the harness) and `tests/test_ir.py`
+(behavioural pytest suite); rewrote `tests/run_evaluation.py` as a wrapper;
+updated `README.md` and `DEVLOG.md`. Generated `output/evaluation_results.json`
+and `output/evaluation_report.md`. I did **not** touch `preprocess.py`,
+`index_builder.py`, `vsm.py`, `positional_index.py`, or `reranker.py`, so the
+required lnc.ltc mathematics, N = 100, cosine normalization, docID tie-break,
+and positional semantics are all unchanged.
+
+**Evaluation performed.** `python -m src.evaluate` runs: 12 free-text queries
+(single/multi-term across categories and descriptive concepts) through the
+lnc.ltc VSM top-10, recording the reranked ranking separately without replacing
+the baseline; 7 exact phrase queries (`cotton shirt`, `stretch denim`,
+`festive wear`, `winter wear`, `regular fit`, `high waist`, `breathable
+fabric`) with the actual consecutive positions; 5 ordered proximity queries
+with **different k** (`cotton W/3 shirt`, `stretch W/4 denim`, `winter W/2
+wear`, `high W/1 waist`, `slim W/3 fit`) with the satisfying `(p1,p2)` pairs;
+and unknown-term queries (`corduroy blazer`, `cotton corduroy`) that return
+cleanly with in-range scores and no invented matches. Only query strings are
+declared — every docID/score/position is computed live.
+
+**Important findings.** The two positional-impact cases are *discovered* from
+the live index, not assumed. Case 1 (`cotton shirt`): **15** documents contain
+both terms somewhere but only **10** contain the adjacent phrase, so 5
+co-occurrence-only docs (D011, D031, D051, D071, D091) exist; in D011 `cotton`
+is at position 11 and `shirt` at 3/8/13, never adjacent, so a boolean/VSM
+"both present" test would wrongly return it while positional phrase search
+correctly excludes it. Case 2 (`cotton denim`): baseline lnc.ltc ranks D043
+(cosine 0.2060) above D053 (cosine 0.1787), but in D053 `cotton`/`denim` are
+adjacent (positions 13/14, gap 1, bonus 0.5) while in D043 they never co-occur
+(bonus 0), so with alpha 0.15 D053's final score 0.2537 lifts it from rank 6 to
+rank 3, overtaking D043. So the proximity reranker **does** change rankings for
+some queries (`cotton denim`, `regular winter`, `jacket festive`) and leaves
+others unchanged (`cotton shirt` — uniform proximity across the top group),
+which the report states honestly.
+
+**Tests added.** `tests/test_ir.py` has 36 behavioural tests (not existence
+checks): corpus invariants (N=100, unique IDs, required fields); preprocessing
+(lowercasing, punctuation splitting, stopword removal, Porter stemming,
+index/query consistency); inverted index (df = posting count, tf recount, valid
+postings, df ≠ collection frequency); VSM (unknown-term safety, cosine ∈ [0,1],
+determinism, ascending-docID tie-break, top-k, and a hand-recomputed lnc.ltc
+single-term score confirming **no idf on documents**); positional index
+(positions recover their tokens, tf = len(positions), phrase consecutiveness,
+phrase order sensitivity, proximity respects k, ordered definition, unknown/
+invalid-k handling); and reranking (baseline untouched, `alpha=0` recovers the
+baseline order, deterministic bonuses/results, no bonus without positional
+evidence, and the `final = cosine + alpha·bonus` formula).
+
+**Ran everything.** `python -m pytest tests/ -q` → **36 passed**. `python -m
+src.evaluate` regenerated both output files; I re-opened the JSON (valid, all
+six required sections present) and the Markdown, and cross-checked the reported
+positions against the live positional index (D053 `cotton`=[13]/`denim`=[14];
+D011 `cotton`=[11]/`shirt`=[3,8,13]) — they match exactly. Both the baseline
+and reranked orderings are reproducible across runs.
+
+**Limitations.** The corpus is small and heavily templated, so many documents
+share near-identical cosine scores and several free-text queries show no
+top-10 reordering under the reranker (reported honestly, not massaged). The
+proximity signal is a simple `1/(1+gap)` pairwise heuristic, not a learned or
+semantic model; the system does no semantic understanding and uses no
+embeddings/transformers/LLMs.
