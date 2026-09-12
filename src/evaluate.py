@@ -19,8 +19,8 @@ search, proximity search, or re-ranking:
 Everything reported here is produced by executing that live retrieval code.
 No expected document IDs, scores, or positions are hard-coded: the query
 *strings* are declared, but every docID / score / position / ranking in the
-generated ``output/evaluation_results.json`` and ``output/evaluation_report.md``
-is computed at run time. The positional-analysis cases (phrase-vs-cooccurrence
+generated ``output/test_results.json`` and ``output/test_results.md`` is
+computed at run time. The positional-analysis cases (phrase-vs-cooccurrence
 and proximity re-ranking) are *discovered* from the actual positional index,
 not asserted in advance.
 
@@ -30,9 +30,16 @@ Run it::
     # or
     python src/evaluate.py
 
-Both regenerate ``output/evaluation_results.json`` and
-``output/evaluation_report.md`` deterministically (overwriting any previous
-copies).
+Each run regenerates three deliverables under ``output/`` (overwriting any
+previous copies deterministically):
+
+    * ``test_results.json`` — machine-readable results for every query.
+    * ``test_results.md``   — the human-readable results report (tables).
+    * ``analysis.md``       — the viva-oriented analytical write-up (concept
+                              explanations, the two positional-impact cases,
+                              and the reranking observations), built from the
+                              same live results so its numbers are never
+                              hand-typed.
 """
 
 from __future__ import annotations
@@ -57,8 +64,9 @@ from reranker import (  # noqa: E402
 from vsm import N, _doc_id_sort_key, get_model, query_vsm  # noqa: E402
 
 REPO_ROOT = _SRC_DIR.parent
-DEFAULT_RESULTS_PATH = REPO_ROOT / "output" / "evaluation_results.json"
-DEFAULT_REPORT_PATH = REPO_ROOT / "output" / "evaluation_report.md"
+DEFAULT_RESULTS_PATH = REPO_ROOT / "output" / "test_results.json"
+DEFAULT_REPORT_PATH = REPO_ROOT / "output" / "test_results.md"
+DEFAULT_ANALYSIS_PATH = REPO_ROOT / "output" / "analysis.md"
 
 TOP_K = 10
 
@@ -726,7 +734,7 @@ def build_report(results: dict) -> str:
     ]
     add(
         "Proximity-aware reranked rankings are recorded separately in "
-        "`evaluation_results.json` (field `reranked`). The reranker changed "
+        "`test_results.json` (field `reranked`). The reranker changed "
         f"the top-10 order for: "
         + (", ".join(f"`{q}`" for q in changed_ft) if changed_ft else "none of these queries")
         + "."
@@ -942,12 +950,292 @@ def write_report(results: dict, path: str | Path = DEFAULT_REPORT_PATH) -> None:
     path.write_text(build_report(results), encoding="utf-8")
 
 
+def build_analysis(results: dict) -> str:
+    """Render the viva-oriented ``analysis.md`` from the live results.
+
+    This is the explanatory companion to ``test_results.md``: it answers the
+    core conceptual questions in plain language and grounds the two
+    positional-impact discussions in the numbers actually produced by this run
+    (nothing here is hand-typed — the counts, docIDs, and gaps are read from
+    the ``results`` dict).
+    """
+    setup = results["evaluation_setup"]
+    n = setup["N_for_idf"]
+    vocab = setup["vocabulary_size"]
+    corpus_size = setup["corpus_size"]
+    case_a = results["positional_analysis"]["case_a_phrase_vs_cooccurrence"]
+    case_b = results["positional_analysis"]["case_b_proximity_reranking"]
+
+    lines: list[str] = []
+    add = lines.append
+
+    add("# IR Assignment 1 — Analysis & Concept Reference")
+    add("")
+    add(
+        "This document explains *why* the system is built the way it is and "
+        "answers the concepts most likely to come up in a viva. The numeric "
+        "examples are read from the same live evaluation run that produced "
+        "`test_results.json` / `test_results.md`, so they always match the "
+        "current corpus."
+    )
+    add("")
+
+    # 1. System summary
+    add("## 1. What the system is")
+    add("")
+    add(
+        f"A classical Information Retrieval pipeline over {corpus_size} clothing "
+        f"product descriptions ({vocab} distinct stems, N = {n} for idf):"
+    )
+    add("")
+    add("- **Preprocessing** — one shared pipeline: lowercase → punctuation "
+        "split → NLTK English stop-word removal → Porter stemming.")
+    add("- **Inverted index** — `term → {df, postings: {docID: tf}}`.")
+    add("- **Ranked retrieval** — Vector Space Model with the **lnc.ltc** "
+        "weighting scheme and cosine similarity.")
+    add("- **Positional index** — postings extended with token positions, "
+        "supporting exact phrase search and ordered `WITHIN/k` proximity "
+        "search.")
+    add("- **Novelty** — proximity-aware re-ranking: an explainable extension "
+        "that nudges the lnc.ltc ranking using positional evidence, without "
+        "replacing the baseline.")
+    add("")
+    add("There is **no** machine learning, no embeddings, and no LLM anywhere "
+        "in the system — it is classical IR arithmetic that can be "
+        "hand-checked.")
+    add("")
+
+    # 2. Concept reference
+    add("## 2. Concept reference (viva questions)")
+    add("")
+    add("**What is an inverted index?** A map from each vocabulary term to the "
+        "list of documents that contain it (its *postings*). Instead of "
+        "scanning every document for a query term, we jump straight to that "
+        "term's postings. Here each posting also stores the term frequency "
+        "(and, in the positional index, the positions).")
+    add("")
+    add("**What is `df` (document frequency)?** The number of *distinct "
+        "documents* a term occurs in — the length of its postings list. It is "
+        "**not** the total number of occurrences (that is collection "
+        "frequency). `df` drives idf: a term in few documents is more "
+        "discriminating.")
+    add("")
+    add("**What is `tf` (term frequency)?** The number of times a term occurs "
+        "*within one document*. In lnc.ltc it is dampened with a logarithm "
+        "(`1 + log10(tf)`) so a word occurring 10 times is worth more than "
+        "once, but not ten times as much.")
+    add("")
+    add("**Why is idf applied to the query but not the document in lnc.ltc?** "
+        "idf (`log10(N/df)`) is a *collection-level* property of a term, not a "
+        "property of the term inside one document. lnc.ltc applies it exactly "
+        "**once**, on the query side, so a rare word still boosts the ranking "
+        "without being squared by also multiplying it into every document "
+        "weight. This also keeps document weights independent of any query, so "
+        "they can be precomputed once. (The middle letter of the document "
+        "scheme `lnc` is `n` = *no* idf.)")
+    add("")
+    add("**Why normalize the vectors?** Without normalization, long documents "
+        "accumulate larger raw dot products purely because they have more "
+        "terms and higher tf — length, not relevance, would win. Dividing each "
+        "vector by its Euclidean (cosine) norm projects every document and the "
+        "query onto the unit sphere, so similarity depends on term "
+        "*proportions*, not document size.")
+    add("")
+    add("**Why cosine similarity?** After both vectors are length-normalized, "
+        "their dot product is the cosine of the angle between them — a bounded "
+        "`[0, 1]` measure of how similarly the query and document distribute "
+        "weight across shared terms. Because the vectors are already unit "
+        "length, the cosine *is* the dot product; we do not divide by the "
+        "norms a second time.")
+    add("")
+    add("**What does positional indexing add?** The plain VSM is a "
+        "*bag-of-words* model: it knows *which* terms a document contains and "
+        "how salient they are, but it discards word **order**. The positional "
+        "index additionally stores *where* each term occurs, which lets us "
+        "answer structural questions the VSM cannot — is this an exact phrase? "
+        "are these two terms close together?")
+    add("")
+    if case_a:
+        ex = case_a["example_cooccurrence_only"]
+        add(
+            "**Why is `cotton shirt` different from merely finding documents "
+            "that contain both words?** Because a phrase requires the words to "
+            "be **adjacent and in order**, not just present somewhere. In this "
+            f"corpus, `{case_a['phrase']}` occurs in "
+            f"**{case_a['num_cooccurrence_docs']}** documents when we only ask "
+            "that both terms appear *somewhere*, but in only "
+            f"**{case_a['num_phrase_match_docs']}** documents as the actual "
+            f"adjacent phrase. For example, **{ex['docID']}** contains both "
+            "terms but never next to each other, so a boolean/VSM "
+            "'both present' test would wrongly return it while exact phrase "
+            "search correctly excludes it."
+        )
+    else:
+        add(
+            "**Why is `cotton shirt` different from merely finding documents "
+            "that contain both words?** Because a phrase requires the words to "
+            "be adjacent and in order, not just both present. Boolean/VSM "
+            "co-occurrence would return documents where the two words sit far "
+            "apart; exact phrase search excludes them."
+        )
+    add("")
+    add("**What does `k` mean in proximity search?** `k` is the **maximum "
+        "positional difference** allowed between the two matched tokens — "
+        "*not* the number of words in between. Ordered `term1 WITHIN/k term2` "
+        "keeps pairs with `0 < p2 - p1 <= k`; adjacency is the `k = 1` case, "
+        "and `k = 3` allows up to two tokens between them.")
+    add("")
+    add("**How does the novelty combine VSM and positional information?** It "
+        "runs the lnc.ltc VSM first and takes its top candidates. For each "
+        "candidate it computes a `proximity_bonus` from the positional index: "
+        "for every pair of distinct known query terms, `pair_bonus = "
+        "1 / (1 + min_gap)` (closer terms → larger bonus), summed over pairs. "
+        "The candidates are then re-ordered by "
+        "`final_score = cosine_score + alpha * proximity_bonus`. So the "
+        "lexical score (VSM) decides *relevance* and the positional signal "
+        "only *reshapes* the ordering.")
+    add("")
+    add(f"**Why is `alpha` necessary?** `alpha` (default "
+        f"{setup['reranking_method'].split('alpha=')[-1].split(',')[0] if 'alpha=' in setup['reranking_method'] else '0.15'}) "
+        "scales the proximity bonus so it stays a *controlled secondary "
+        "signal*. Cosine scores and proximity bonuses live on different "
+        "scales; without a small weight the heuristic bonus could overwhelm "
+        "the required cosine similarity. Keeping `alpha` small means proximity "
+        "only nudges near-tied candidates, and setting `alpha = 0` recovers "
+        "the exact baseline order — which is how we prove the baseline is "
+        "preserved.")
+    add("")
+    add("**Why did the novelty not replace lnc.ltc?** The assignment requires "
+        "lnc.ltc ranked retrieval, and proximity is a weaker, heuristic "
+        "signal that is only meaningful *among* already-relevant documents. "
+        "Replacing the VSM would throw away the term-weighting that decides "
+        "relevance in the first place. Instead the reranker *calls* "
+        "`query_vsm` unchanged and layers on top of it, so the baseline stays "
+        "independently available for comparison.")
+    add("")
+    add("**What happens when a query contains an unknown term?** An unknown "
+        "term has no `df` and no postings, so it contributes **no** query "
+        "weight, cannot form a phrase, and cannot form a proximity pair. "
+        "Retrieval continues on the remaining known terms (or returns an "
+        "empty list if every term is unknown) and never crashes. A "
+        "known + unknown query returns exactly what the known term alone "
+        "would.")
+    add("")
+
+    # 3. Positional impact cases (grounded in live numbers)
+    add("## 3. Positional impact — two concrete cases")
+    add("")
+    add("These are the two required cases where positional information changes "
+        "the result set or ordering. Both are **discovered** from the live "
+        "index, not hard-coded.")
+    add("")
+    add("### Case 1 — exact phrase vs. mere co-occurrence")
+    add("")
+    if case_a:
+        ex = case_a["example_cooccurrence_only"]
+        add(f"- **Phrase:** `{case_a['phrase']}` (normalized "
+            f"{case_a['normalized_terms']}).")
+        add(f"- Documents containing all terms *somewhere*: "
+            f"**{case_a['num_cooccurrence_docs']}**.")
+        add(f"- Documents where the phrase actually matches (adjacent, in "
+            f"order): **{case_a['num_phrase_match_docs']}**.")
+        add(f"- Co-occurrence-only example **{ex['docID']}** "
+            f"({ex['category']}: {ex['title']}):")
+        for term, positions in ex["term_positions"].items():
+            add(f"  - `{term}` at positions {_fmt_positions(positions)}")
+        add(f"  - Closest forward gap between the terms: "
+            f"**{ex['min_forward_gap_between_terms']}** (> 1, so not a phrase).")
+        add("")
+        add("This is the textbook reason positional indexing matters: "
+            "co-occurrence and phrase matching are **not** the same set.")
+    else:
+        add("_No qualifying phrase was found in the evaluated set for this run._")
+    add("")
+    add("### Case 2 — proximity-aware re-ranking changes the order")
+    add("")
+    if case_b:
+        risen = case_b["risen_document"]
+        add(f"- **Query:** `{case_b['query']}`.")
+        add(f"- Baseline order: {case_b['baseline_order']}")
+        add(f"- Reranked order: {case_b['reranked_order']}")
+        add(f"- **{risen['docID']}** ({risen['category']}: {risen['title']}) "
+            f"rises from baseline rank **{risen['baseline_rank']}** to "
+            f"reranked rank **{risen['reranked_rank']}**: cosine "
+            f"{risen['cosine_score']:.4f}, proximity bonus "
+            f"{risen['proximity_bonus']:.4f}, final "
+            f"{risen['final_score']:.4f}.")
+        if risen["closest_pair"]:
+            cp = risen["closest_pair"]
+            add(f"  - Closest term pair `{cp['terms'][0]}`/`{cp['terms'][1]}` "
+                f"with minimum gap **{cp['min_gap']}** "
+                f"(pair bonus {cp['pair_bonus']:.4f}).")
+        if "overtaken_document" in case_b:
+            ot = case_b["overtaken_document"]
+            add(f"- It overtakes **{ot['docID']}** (cosine "
+                f"{ot['cosine_score']:.4f}, *higher*, but proximity bonus "
+                f"{ot['proximity_bonus']:.4f}) — the terms are not close "
+                "together there.")
+        add("")
+        add(case_b["explanation"])
+    else:
+        add("_No query in the evaluated pool changed order under re-ranking "
+            "for this run._")
+    add("")
+
+    # 4. Reranking observations
+    add("## 4. Baseline vs. proximity re-ranking — honest observations")
+    add("")
+    for rec in results["reranking_comparisons"]:
+        if rec["changed"]:
+            add(f"- `{rec['query']}`: re-ranking **changed** the order "
+                f"(documents that moved: {rec['documents_whose_rank_changed']}).")
+        else:
+            add(f"- `{rec['query']}`: re-ranking **did not change** the order "
+                "(the proximity bonus was uniform across the top group — "
+                "reported honestly, not massaged).")
+    add("")
+    add("The reranker helps for some multi-term queries and does nothing for "
+        "others. We never fabricate an improvement; a no-change result is "
+        "reported as such.")
+    add("")
+
+    # 5. Limitations
+    add("## 5. Limitations")
+    add("")
+    add("- The corpus is small (100 documents) and heavily templated, so many "
+        "documents share near-identical cosine scores; this both limits how "
+        "often the proximity signal can matter and makes several queries tie.")
+    add("- The proximity bonus is a simple `1/(1+gap)` pairwise heuristic, not "
+        "a learned or semantic model. It rewards closeness, which is a proxy "
+        "for — not a guarantee of — better relevance.")
+    add("- Porter stemming is aggressive (e.g. `festive` → `festiv`, "
+        "`leggings` → `legg`), which is standard but can merge or mangle a few "
+        "product words.")
+    add("- Single-letter size tokens `s`/`m` collide with NLTK stop-words "
+        "(from contractions) and are dropped; this is an accepted consequence "
+        "of using a consistent stock stop-word list.")
+    add("- The system performs **no** semantic understanding: synonyms and "
+        "paraphrases are not matched. It is a classical lexical + positional "
+        "IR system by design.")
+    add("")
+
+    return "\n".join(lines) + "\n"
+
+
+def write_analysis(results: dict, path: str | Path = DEFAULT_ANALYSIS_PATH) -> None:
+    """Write the viva-oriented Markdown analysis document."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(build_analysis(results), encoding="utf-8")
+
+
 def main() -> None:
     print("Running IR evaluation suite (Part E)...")
     results = run_evaluation()
 
     write_json(results)
     write_report(results)
+    write_analysis(results)
 
     setup = results["evaluation_setup"]
     print(f"  corpus size          : {setup['corpus_size']}")
@@ -974,6 +1262,7 @@ def main() -> None:
     print(f"  rerank changed order : {changed if changed else 'none'}")
     print(f"  wrote {DEFAULT_RESULTS_PATH}")
     print(f"  wrote {DEFAULT_REPORT_PATH}")
+    print(f"  wrote {DEFAULT_ANALYSIS_PATH}")
 
 
 if __name__ == "__main__":

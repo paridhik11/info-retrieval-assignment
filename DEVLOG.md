@@ -426,3 +426,33 @@ the lnc.ltc baseline). `python -m pytest tests/ -q` → **51 passed**. I re-ran
 required evaluation outputs, so lnc.ltc results, proximity reranking, and
 phrase/proximity search are all unchanged. `import app` still succeeds, so
 Streamlit still loads.
+
+## Entry — Final submission pass
+
+Final audit and packaging pass over the whole repository. I verified every
+assignment part end-to-end in a fresh virtual environment: `pip install -r
+requirements.txt`, rebuilt `output/inverted_index.json` and
+`output/positional_index.json` (both deterministic — regeneration produced
+byte-identical files), re-ran `python -m src.evaluate`, and ran the pytest
+suite (**51 passed**). N = 100 and the 124-stem vocabulary are unchanged.
+
+To match the required deliverable names I renamed the Part E outputs
+`evaluation_results.json` → `output/test_results.json` and
+`evaluation_report.md` → `output/test_results.md`, and added a generated
+`output/analysis.md` (a viva-oriented concept + positional-impact write-up
+built from the same live results, so its numbers are never hand-typed). I
+updated the references in `src/bm25_compare.py` and `README.md` accordingly,
+added the missing sections to the README (assignment mapping, dataset, output
+files, design decisions, limitations), added `pytest` to `requirements.txt`
+(the test suite needs it), and made `.gitignore` ignore the submission ZIP and
+the audit venv. No retrieval logic was changed: `preprocess.py`,
+`index_builder.py`, `vsm.py`, `positional_index.py`, and `reranker.py` are
+untouched, so the lnc.ltc mathematics, positional semantics, and the
+proximity-aware novelty (`final = cosine + alpha·bonus`, alpha = 0.15) are all
+preserved.
+
+Packaged `ir_assignment1_student1_student2.zip` (placeholder names — the real
+student names still need to be filled in) from the committed tree, excluding
+`.git`, virtual environments, `__pycache__`, and the ZIP itself. **Screenshots
+still need to be captured manually** from the running Streamlit app; the
+`screenshots/` folder currently holds only a `.gitkeep`.

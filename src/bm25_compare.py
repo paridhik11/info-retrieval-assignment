@@ -15,8 +15,8 @@ corpus, query for query, and writes the results to::
 
 This module ONLY *drives* the two existing rankers; it re-implements neither.
 It never calls into or mutates ``query_vsm`` beyond reading its output, and it
-does **not** touch the required ``output/evaluation_results.json`` /
-``output/evaluation_report.md`` produced by ``src/evaluate.py``. The original
+does **not** touch the required ``output/test_results.json`` /
+``output/test_results.md`` produced by ``src/evaluate.py``. The original
 lnc.ltc evaluation is left completely intact — this writes a separate pair of
 files.
 

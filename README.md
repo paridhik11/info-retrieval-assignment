@@ -16,6 +16,26 @@ The project implements, from first principles, a standard IR pipeline:
 - **Streamlit interface** — free-text search plus a phrase/proximity mode.
 - **Evaluation harness** — free-text, phrase, and proximity test queries.
 
+## Assignment mapping
+
+| Assignment part | Requirement | Where it lives |
+|-----------------|-------------|----------------|
+| **A** | Corpus reading, tokenization, case-folding, punctuation removal, stemming, stop-word policy, inverted index (term, df, postings with tf) | `src/preprocess.py`, `src/index_builder.py` → `output/inverted_index.json` |
+| **B** | Ranked retrieval with the `lnc.ltc` VSM, cosine similarity, top-10, docID tie-break | `src/vsm.py` |
+| **C** | Positional index, exact phrase search, ordered `WITHIN/k` proximity search | `src/positional_index.py` → `output/positional_index.json` |
+| **D** | Streamlit interface: free-text ranked search + phrase/proximity mode showing positions | `src/app.py` |
+| **E** | ≥10 free-text, ≥5 phrase, ≥3 proximity (varied k), ≥1 unknown-term query; ≥2 positional-impact cases; no hard-coded results | `src/evaluate.py`, `tests/test_ir.py` → `output/test_results.*`, `output/analysis.md` |
+| **Novelty** | Explainable proximity-aware re-ranking of the VSM candidates | `src/reranker.py` |
+
+## Dataset
+
+`data/corpus_100.txt` is the supplied corpus of **exactly 100** clothing
+product descriptions. Each record is an XML-style `<DOC>` block with
+`<DOCID>`, `<CATEGORY>`, `<TITLE>`, and `<TEXT>` fields (categories include
+T-Shirt, Shirt, Jeans, Kurta, Saree, Dress, Hoodie, Jacket, Leggings,
+Sweatshirt). DOCIDs are read from the tags, never hard-coded, and the parser
+asserts N = 100 with unique IDs and no empty required fields.
+
 ## Project structure
 
 ```
@@ -31,7 +51,7 @@ src/                  IR implementation modules
   app.py              Part D: Streamlit interface
   evaluate.py         Part E: reproducible evaluation + analysis harness
 tests/
-  test_ir.py          Part E: behavioural pytest suite (36 tests)
+  test_ir.py          Part E: behavioural pytest suite (51 tests)
   run_evaluation.py   Part E: thin wrapper that calls src/evaluate.py
 output/               generated indexes, evaluation results, and analysis
 screenshots/          application / query screenshots
@@ -341,9 +361,9 @@ explainable comparison rather than an abstract one.
 index (`df` + `tf` postings), the Part A document statistics, and the exact same
 `preprocess_text` pipeline. It never calls, wraps, or alters `query_vsm`; the
 required VSM mathematics, `N = 100`, cosine normalization, and docID tie-break
-are untouched. `output/evaluation_results.json` / `output/evaluation_report.md`
-(the required Part E outputs) are **not** overwritten — BM25 writes its own pair
-of files.
+are untouched. `output/test_results.json` / `output/test_results.md` /
+`output/analysis.md` (the required Part E outputs) are **not** overwritten —
+BM25 writes its own separate pair of files.
 
 **3. The BM25 formula used** (implemented directly in `src/bm25.py`, no library):
 
@@ -460,15 +480,19 @@ python src/evaluate.py        # equivalent
 python tests/run_evaluation.py  # thin wrapper, same result
 ```
 
-Each run regenerates two files under `output/` (overwriting deterministically):
+Each run regenerates three files under `output/` (overwriting deterministically):
 
-- **`output/evaluation_results.json`** — machine-readable results with clearly
+- **`output/test_results.json`** — machine-readable results with clearly
   separated sections: `free_text_queries`, `phrase_queries`,
   `proximity_queries`, `unknown_term_query`, `reranking_comparisons`, and
   `positional_analysis` (plus an `evaluation_setup` header).
-- **`output/evaluation_report.md`** — a human-readable report with result
+- **`output/test_results.md`** — a human-readable report with result
   tables (free-text, phrase, proximity, reranking), the unknown-term behavior,
   the two positional-impact cases, and honest observations.
+- **`output/analysis.md`** — a viva-oriented analytical write-up: concept
+  explanations (inverted index, df/tf, why idf is query-only, why normalize,
+  etc.), the two positional-impact cases, and the reranking observations, all
+  grounded in the same live numbers.
 
 ### What is evaluated
 
@@ -517,7 +541,8 @@ proximity bonus is uniform across the top group). No improvement is fabricated.
 
 ### Automated tests
 
-`tests/test_ir.py` is a behavioural pytest suite (36 tests) covering the
+`tests/test_ir.py` is a behavioural pytest suite (51 tests, including the
+optional BM25 comparison model) covering the
 corpus (N = 100, unique IDs, required fields), preprocessing (lowercasing,
 punctuation, stopwords, stemming, index/query consistency), the inverted index
 (df/tf correctness, valid postings, df ≠ collection frequency), the VSM
@@ -533,6 +558,59 @@ deterministic bonuses, no bonus without positional evidence, and the
 python -m pytest tests/ -q
 ```
 
+## Output files
+
+Everything under `output/` is regenerated by the scripts (nothing is
+hand-edited):
+
+| File | Produced by | Contents |
+|------|-------------|----------|
+| `inverted_index.json` | `python src/index_builder.py` | `term → {df, postings: {docID: tf}}` (Part A) |
+| `doc_metadata.json` | `python src/index_builder.py` | `docID → {category, title, text, tokens}` for display |
+| `positional_index.json` | `python src/positional_index.py` | `term → {df, postings: {docID: {tf, positions}}}` (Part C) |
+| `test_results.json` | `python -m src.evaluate` | machine-readable results for every evaluation query |
+| `test_results.md` | `python -m src.evaluate` | human-readable results report (tables) |
+| `analysis.md` | `python -m src.evaluate` | viva-oriented concept + positional-impact analysis |
+| `bm25_comparison.json` / `.md` | `python -m src.bm25_compare` | optional BM25 vs. lnc.ltc comparison |
+
+## Design decisions
+
+- **One shared preprocessing pipeline.** The inverted index, VSM, positional
+  index, phrase/proximity search, and query parsing all call the same
+  `preprocess_text`, so document terms and query terms are always the same
+  stems. `verify_consistency_with_inverted_index` proves the positional index
+  matches Part A's vocabulary, df, and tf.
+- **TITLE + TEXT are indexed; CATEGORY is display-only.** The title already
+  names the garment type, and indexing CATEGORY would uniformly inflate tf for
+  every document in a category.
+- **Stock NLTK English stop-word list, applied consistently, no clothing
+  additions.** Terms like *cotton*, *denim*, *fit*, *winter*, *festive* are
+  meaningful retrieval cues, not function words, so they stay searchable.
+- **Positions are zero-based indices into the *processed* token stream**, so
+  `document.tokens[p]` recovers the token at position `p` with no off-by-one
+  translation, and adjacency is well-defined after stop-word removal.
+- **idf on the query side only** (the classic `lnc.ltc` recipe): idf is a
+  collection-level property applied exactly once, keeping document weights
+  query-independent and precomputable.
+- **Explicit docID tie-break** so rankings never depend on dict/set iteration
+  order.
+- **The novelty extends, never replaces, the baseline.** `query_vsm` is called
+  unchanged; `alpha = 0` provably recovers the baseline order.
+
+## Limitations
+
+- The corpus is small (100 documents) and heavily templated, so many documents
+  share near-identical cosine scores; several queries tie or show no reordering
+  under the reranker (reported honestly, never massaged).
+- The proximity bonus is a simple `1/(1+gap)` pairwise heuristic — a proxy for
+  relevance, not a learned or semantic model.
+- Porter stemming is aggressive (e.g. `festive → festiv`), and single-letter
+  size tokens `s`/`m` collide with NLTK stop-words and are dropped — accepted
+  consequences of a standard, consistent pipeline.
+- The system performs **no** semantic understanding (no synonyms, embeddings,
+  transformers, or LLMs). It is a classical lexical + positional IR system by
+  design.
+
 ## Status
 
 Part A is in place: XML-style corpus parsing, a documented English stopword
@@ -547,5 +625,5 @@ retrieval and a phrase/proximity mode that surfaces matching positions. The
 wired into the free-text UI behind a toggle, keeping the `lnc.ltc` baseline
 available unchanged for comparison. Part E is in place: a reproducible
 evaluation and analysis harness (`src/evaluate.py`) that regenerates
-`output/evaluation_results.json` and `output/evaluation_report.md`, plus a
-behavioural pytest suite (`tests/test_ir.py`, 36 tests, all passing).
+`output/test_results.json`, `output/test_results.md`, and `output/analysis.md`,
+plus a behavioural pytest suite (`tests/test_ir.py`, 51 tests, all passing).

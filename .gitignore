@@ -12,6 +12,7 @@ dist/
 
 # ---- Virtual environments ----
 .venv/
+.venv_audit/
 venv/
 env/
 ENV/
@@ -32,3 +33,6 @@ desktop.ini
 # ---- Generated temporary files ----
 *.log
 *.tmp
+
+# ---- Submission archive (built on demand, never committed) ----
+ir_assignment1_*.zip
