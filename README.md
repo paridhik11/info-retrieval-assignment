@@ -2,6 +2,8 @@
 
 CSD358 | A classical clothing search engine built over a synthetic corpus of **100 clothing product descriptions** (`data/corpus_100.txt`).
 
+GitHub Repository Link: https://github.com/paridhik11/info-retrieval-assignment
+
 The project implements a standard IR pipeline from first principles — no ML libraries, embeddings, or language models.
 
 ## Features
