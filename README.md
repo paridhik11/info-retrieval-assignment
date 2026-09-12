@@ -26,6 +26,8 @@ src/                  IR implementation modules
   vsm.py              Part B: Vector Space Model (lnc.ltc cosine)
   positional_index.py Part C: positional index + phrase/proximity search
   reranker.py         Combines VSM ranking with positional evidence
+  bm25.py             Optional: BM25 ranking model (classical IR comparison)
+  bm25_compare.py     Optional: lnc.ltc vs. BM25 comparison + report writer
   app.py              Part D: Streamlit interface
   evaluate.py         Part E: reproducible evaluation + analysis harness
 tests/
@@ -320,6 +322,122 @@ switch from the baseline to the novelty. When enabled it shows the baseline
 cosine score, the proximity bonus, the final score, the final rank, each
 document's movement versus the baseline, and a compact baseline-vs-reranked
 ordering comparison.
+
+## Optional Classical IR Comparison: BM25
+
+> **This is an optional experimental extension, not a replacement.** The
+> required assignment baseline is and remains the **`lnc.ltc` Vector Space
+> Model** in `src/vsm.py`. `query_vsm()` is **not** modified. BM25 lives in a
+> separate module (`src/bm25.py`) and is used only to compare two *classical*
+> IR ranking approaches on the same 100-document clothing corpus.
+
+**1. Why BM25 was added.** `lnc.ltc` and BM25 are the two canonical classical
+ranking models. Adding BM25 lets us hold the corpus, preprocessing, inverted
+index, and document statistics fixed and observe how a *different* term-weighting
+and length-normalization scheme reorders the same documents — a concrete,
+explainable comparison rather than an abstract one.
+
+**2. `lnc.ltc` remains the required baseline.** BM25 reuses the Part A inverted
+index (`df` + `tf` postings), the Part A document statistics, and the exact same
+`preprocess_text` pipeline. It never calls, wraps, or alters `query_vsm`; the
+required VSM mathematics, `N = 100`, cosine normalization, and docID tie-break
+are untouched. `output/evaluation_results.json` / `output/evaluation_report.md`
+(the required Part E outputs) are **not** overwritten — BM25 writes its own pair
+of files.
+
+**3. The BM25 formula used** (implemented directly in `src/bm25.py`, no library):
+
+```
+BM25(D,Q) = sum over query terms t of
+    IDF(t) * ( tf(t,D) * (k1 + 1) )
+             / ( tf(t,D) + k1 * (1 - b + b * |D| / avgdl) )
+
+IDF(t) = ln( (N - df_t + 0.5) / (df_t + 0.5) + 1 )        (N = 100)
+```
+
+- `tf(t,D)` — raw term frequency of `t` in `D`, read straight from the inverted
+  index postings.
+- `|D|` — **document length = the number of processed (stemmed) tokens in `D`**
+  (the same normalized token sequence the whole system indexes; TITLE+TEXT, not
+  CATEGORY, and never raw character length). Verified equal to the sum of `tf`
+  over the inverted index.
+- `avgdl` — the average processed document length over all `N = 100` documents
+  (here **50.63** tokens).
+- **IDF choice (documented explicitly):** we use the Lucene-style probabilistic
+  IDF with `+ 1` inside the log. The classic `ln((N-df+0.5)/(df+0.5))` can go
+  *negative* for terms in more than half the collection; the `+ 1` keeps the
+  argument `> 1`, so **`IDF(t) > 0` for every term** and no term ever penalizes a
+  document. The natural log is standard for BM25; the base only rescales every
+  score by a constant and therefore does **not** change the BM25 ranking.
+
+**4. The meaning of `k1` and `b`** (defaults `k1 = 1.5`, `b = 0.75`, exposed as
+configurable function parameters, not buried constants):
+
+- `k1` controls **term-frequency saturation**. Unlike `lnc.ltc`'s ever-growing
+  `1 + log10(tf)`, BM25's tf factor saturates toward `(k1 + 1)`; larger `k1`
+  lets extra occurrences matter for longer, `k1 = 0` collapses tf to a binary
+  "present" signal.
+- `b` controls **document-length normalization strength**. `b = 0` disables
+  length normalization; `b = 1` fully normalizes by `|D|/avgdl`; `0.75` is the
+  standard middle ground.
+
+**5. How BM25 differs from `lnc.ltc`.**
+
+| Aspect | `lnc.ltc` (required baseline) | BM25 (optional extension) |
+| ------ | ---------------------------- | ------------------------- |
+| Term frequency | `1 + log10(tf)` (unbounded log growth) | `tf*(k1+1)/(tf + k1*…)` (**saturating**) |
+| Length normalization | cosine (Euclidean) norm of the doc vector | `(1 - b + b*|D|/avgdl)` vs. average length |
+| IDF | `log10(N/df)`, applied once on the query side | `ln((N-df+0.5)/(df+0.5)+1)` per term in the sum |
+| Query weighting | `(1+log10(tf_q))·idf`, cosine-normalized | no query-tf factor (each term summed once) |
+| Score range | cosine ∈ [0, 1] | unbounded sum (different scale) |
+
+Because the score scales differ, only the **rankings** are compared, never the
+raw numbers.
+
+**6. What was observed on this 100-document clothing corpus.** Across 8
+multi-term queries (`python -m src.bm25_compare`), **6 produced a different
+top-10 order** and **2 were identical** (`high waist leggings`, `printed
+saree`). The differences are exactly where the formulas predict:
+
+- *Document-length normalization, cleanly isolated —* for `breathable fabric`,
+  every top document has `tf = 1` for both terms and identical `df`, so the
+  **only** differentiator is length. BM25 lifts `D011` and `D071` (each `|D| =
+  49`, just under `avgdl = 50.63`) above the `|D| = 50` documents (e.g. `D011`
+  rises from `lnc.ltc` rank 10 to BM25 rank 4, and `D054`/`D071` enter BM25's
+  top-10 while `D084`/`D094` drop out). `lnc.ltc` orders the same documents by
+  full cosine norm instead, giving a different result. This is the textbook
+  BM25 short-document boost.
+- *idf-driven reordering —* for `denim jeans` and `slim fit jeans`, the rare
+  term (`denim`, df 15) dominates the BM25 sum more sharply than it dominates
+  the cosine, nudging documents heavy on the rarer term up a rank.
+- *Honest no-change cases —* the corpus is heavily templated (many documents in
+  a category share near-identical text), so several queries yield the same or
+  tie-broken-identical order in both models. This is reported as-is, not
+  massaged.
+
+We do **not** claim either model is universally better; we report concrete
+cases where they differ and the formula-level reason for each.
+
+**7. This comparison is an experimental extension, not a replacement.** BM25 is
+optional throughout: normal free-text search still uses the required `lnc.ltc`
+ranking, the BM25 comparison in the UI is off by default (an opt-in "Compare
+with BM25" checkbox in Free-text Search), and BM25 has its own output files.
+
+Public API and outputs:
+
+```python
+query_bm25(query_string, top_k=10, k1=1.5, b=0.75)   # src/bm25.py
+```
+
+```bash
+python src/bm25.py           # BM25 demo + a hand-checked worked example (viva)
+python -m src.bm25_compare   # writes output/bm25_comparison.json and .md
+```
+
+- `output/bm25_comparison.json` — machine-readable per-query comparison (both
+  rankings, both score sets, documents that changed rank, documents
+  appearing/disappearing from the top 10).
+- `output/bm25_comparison.md` — the human-readable comparison report.
 
 ## Evaluation & analysis (Part E)
 

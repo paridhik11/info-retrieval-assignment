@@ -347,3 +347,82 @@ top-10 reordering under the reranker (reported honestly, not massaged). The
 proximity signal is a simple `1/(1+gap)` pairwise heuristic, not a learned or
 semantic model; the system does no semantic understanding and uses no
 embeddings/transformers/LLMs.
+
+## Entry N — Optional extension: BM25 as a second classical ranking model
+
+This entry is an **optional experimental extension** added *after* the required
+assignment and its evaluation were complete. Goal: add a second *classical* IR
+ranking model — Okapi BM25 — purely to compare two classical approaches on the
+same 100-document clothing corpus. It is **not** a replacement for the required
+`lnc.ltc` baseline, which I left byte-for-byte unchanged (`query_vsm` is never
+modified, called-over, or wrapped).
+
+**What I added.** `src/bm25.py` implements BM25 directly (no library hides the
+math) as `query_bm25(query_string, top_k=10, k1=1.5, b=0.75)`, returning the
+same result structure as `query_vsm` (`docID`, `title`, `category`, `score`).
+`src/bm25_compare.py` drives both rankers over 8 multi-term queries and writes
+`output/bm25_comparison.json` and `output/bm25_comparison.md`. I did **not**
+overwrite the required `output/evaluation_results.json` / `evaluation_report.md`.
+
+**Formula and the exact IDF chosen.** The score is
+`sum_t IDF(t) * tf*(k1+1) / (tf + k1*(1 - b + b*|D|/avgdl))`. For IDF I use the
+Lucene-style `IDF(t) = ln((N - df + 0.5)/(df + 0.5) + 1)` with `N = 100` and
+`df` read from the Part A inverted index. I chose the `+1`-inside-log variant on
+purpose: the classic `ln((N-df+0.5)/(df+0.5))` goes negative for terms in more
+than half the collection, whereas the `+1` form keeps every IDF positive so no
+term penalizes a document. `k1` (1.5) and `b` (0.75) are configurable function
+parameters, not buried constants. The natural-log base only rescales all scores
+by a constant, so it cannot change the BM25 ranking (documented in the module).
+
+**Document length done consistently.** `|D|` is the number of **processed
+(stemmed) tokens** in the document — the same normalized TITLE+TEXT stream the
+whole system indexes — and `avgdl` is the average of that over all 100 docs
+(= 50.63). I compute `|D|` from the stored processed token list and assert it
+equals the sum of `tf` over the inverted index (`verify_lengths_match_index`),
+so BM25 length is provably the same token count the rest of the pipeline uses —
+never raw characters and never CATEGORY.
+
+**Query handling.** Queries are normalized with the identical `preprocess_text`
+pipeline. Empty/punctuation/stopword-only queries and all-unknown queries return
+`[]`; unknown terms have no df/postings and contribute exactly 0; repeated (and
+stem-colliding) query terms collapse to a single term, matching the written
+formula which sums each query term once (no query-tf factor). Ranking is
+descending score, ascending docID for ties (explicit `_doc_id_sort_key`, never
+dict order).
+
+**UI.** I added an opt-in "Compare with BM25" checkbox in the Free-text Search
+section (off by default, imported defensively so it can never break the required
+interface). When ticked it shows a compact table of `lnc.ltc` rank/score vs.
+BM25 rank/score for the union of both top-10s, with an explicit note that the
+scores are on different scales and only ranks are comparable. Normal search is
+untouched.
+
+**What I observed (honestly).** Over 8 multi-term queries, 6 gave a different
+top-10 order and 2 were identical (`high waist leggings`, `printed saree`). The
+cleanest, viva-ready case is `breathable fabric`: every top document has `tf=1`
+for both terms and identical `df`, so the *only* differentiator is length — BM25
+lifts the `|D|=49` documents (`D011`, `D071`) above the `|D|=50` ones (`D011`:
+`lnc.ltc` #10 → BM25 #4; `D054`/`D071` enter BM25's top-10, `D084`/`D094` drop
+out), while `lnc.ltc` orders them by full cosine norm. That is the textbook BM25
+short-document boost from `(1 - b + b*|D|/avgdl)`. For `denim jeans` / `slim fit
+jeans` the rarer term (`denim`, df 15) dominates the BM25 sum more sharply than
+the cosine, nudging its rank. I make no universal-superiority claim; templated
+near-duplicate documents are exactly why several queries don't reorder.
+
+**Manual check for the viva.** `python src/bm25.py` recomputes BM25 for
+`cotton denim` from first principles for the top document and asserts it matches
+`query_bm25` (e.g. `denim` df=15 → IDF `ln((100-15+0.5)/(15+0.5)+1)=1.8743`;
+top doc `D023`, `|D|=52`, length factor `1.0203`, `denim` tf=3 contributes
+`1.8743*(3*2.5)/(3+1.5*1.0203)=3.1028`, `cotton` tf=1 contributes `0.5395`,
+total `3.6423`).
+
+**Tests / regression check.** Added 15 BM25 tests to `tests/test_ir.py`
+(N=100, avgdl from processed tokens, `|D|`=token count=index tf sum, the exact
+IDF formula, a hand-recomputed single-document score, result structure matches
+`query_vsm`, unknown/empty/repeated-term safety, determinism, ascending-docID
+tie-break, descending scores, `k1=0` behavior, and that BM25 does not perturb
+the lnc.ltc baseline). `python -m pytest tests/ -q` → **51 passed**. I re-ran
+`python -m src.evaluate` and confirmed `git status` shows **no change** to the
+required evaluation outputs, so lnc.ltc results, proximity reranking, and
+phrase/proximity search are all unchanged. `import app` still succeeds, so
+Streamlit still loads.

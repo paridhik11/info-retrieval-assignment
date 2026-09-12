@@ -71,6 +71,18 @@ except Exception:
     DEFAULT_ALPHA = 0.15  # type: ignore[assignment]
     _RERANKER_AVAILABLE = False
 
+# BM25 is an OPTIONAL experimental extension: a second classical ranking model
+# used only to compare against the required lnc.ltc baseline. It is imported
+# defensively so a missing/broken BM25 module can never break the required
+# free-text interface — the comparison control simply degrades to unavailable.
+try:
+    from bm25 import DEFAULT_B, DEFAULT_K1, query_bm25  # type: ignore
+    _BM25_AVAILABLE = True
+except Exception:
+    query_bm25 = None  # type: ignore[assignment]
+    DEFAULT_K1, DEFAULT_B = 1.5, 0.75  # type: ignore[assignment]
+    _BM25_AVAILABLE = False
+
 
 # --------------------------------------------------------------------------
 # Cached resource loading (built once per session, not per interaction).
@@ -167,6 +179,22 @@ def render_free_text_mode(metadata: dict) -> None:
             "showing the plain `lnc.ltc` cosine ranking instead."
         )
 
+    compare_bm25 = st.checkbox(
+        "Compare with BM25",
+        value=False,
+        help=(
+            "Optional experimental extension: also rank with a second classical "
+            "IR model (Okapi BM25, k1=1.5, b=0.75) and show a compact "
+            "side-by-side of lnc.ltc rank/score vs. BM25 rank/score. This is a "
+            "comparison only — lnc.ltc remains the required baseline ranking."
+        ),
+    )
+    if compare_bm25 and not _BM25_AVAILABLE:
+        st.info(
+            "BM25 comparison is unavailable in this environment — showing the "
+            "required `lnc.ltc` ranking only."
+        )
+
     search = st.button("Search", type="primary", key="free_text_search")
     if not search:
         return
@@ -180,6 +208,12 @@ def render_free_text_mode(metadata: dict) -> None:
         _render_reranked_results(query, metadata)
     else:
         _render_baseline_results(query, metadata)
+
+    # Optional, non-intrusive: only rendered when the user asks for it, and
+    # always AFTER the required lnc.ltc results, so the default interface stays
+    # focused on the required system.
+    if compare_bm25 and _BM25_AVAILABLE:
+        _render_bm25_comparison(query, metadata)
 
 
 def _render_baseline_results(query: str, metadata: dict) -> None:
@@ -308,6 +342,84 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
                 }
             )
         st.dataframe(compare_rows, hide_index=True, use_container_width=True)
+
+
+def _render_bm25_comparison(query: str, metadata: dict) -> None:
+    """Optional extension: compact lnc.ltc vs. BM25 top-10 comparison.
+
+    Shows, for the union of both models' top-10, each document's lnc.ltc rank
+    and cosine score alongside its BM25 rank and BM25 score. This is a
+    comparison view only — it never alters the required lnc.ltc results already
+    shown above.
+    """
+    try:
+        vsm_results = query_vsm(query, top_k=10)
+        bm25_results = query_bm25(query, top_k=10)  # type: ignore[misc]
+    except FileNotFoundError:
+        st.error(
+            "Index files were not found. Please build the indexes first:\n\n"
+            "`python src/index_builder.py`"
+        )
+        return
+    except Exception as exc:  # pragma: no cover - defensive UI guard
+        st.warning(f"BM25 comparison unavailable ({exc}).")
+        return
+
+    if not vsm_results and not bm25_results:
+        return  # nothing to compare; the primary view already reported no hits.
+
+    lnc_by_doc = {
+        row["docID"]: {"rank": i + 1, "score": row["score"]}
+        for i, row in enumerate(vsm_results)
+    }
+    bm25_by_doc = {
+        row["docID"]: {"rank": i + 1, "score": row["score"]}
+        for i, row in enumerate(bm25_results)
+    }
+
+    # Union of both top-10 sets, ordered by BM25 rank then lnc.ltc rank so the
+    # table reads top-down; documents missing from a model show "—".
+    all_docs = set(lnc_by_doc) | set(bm25_by_doc)
+
+    def _sort_key(doc_id: str):
+        bm = bm25_by_doc.get(doc_id, {}).get("rank", 999)
+        ln = lnc_by_doc.get(doc_id, {}).get("rank", 999)
+        return (min(bm, ln), bm, ln, doc_id)
+
+    rows = []
+    for doc_id in sorted(all_docs, key=_sort_key):
+        ln = lnc_by_doc.get(doc_id)
+        bm = bm25_by_doc.get(doc_id)
+        rows.append(
+            {
+                "Doc ID": doc_id,
+                "Category": _meta_field(metadata, doc_id, "category"),
+                "Product title": _meta_field(metadata, doc_id, "title"),
+                "lnc.ltc rank": ln["rank"] if ln else "—",
+                "lnc.ltc score": f"{ln['score']:.4f}" if ln else "—",
+                "BM25 rank": bm["rank"] if bm else "—",
+                "BM25 score": f"{bm['score']:.4f}" if bm else "—",
+            }
+        )
+
+    same_order = [r["docID"] for r in vsm_results] == [r["docID"] for r in bm25_results]
+    st.divider()
+    st.markdown("#### Optional comparison — `lnc.ltc` vs. BM25")
+    if same_order:
+        st.info(
+            f"BM25 (k1 = {DEFAULT_K1}, b = {DEFAULT_B}) produced the **same** "
+            "top-10 order as the required `lnc.ltc` baseline for this query "
+            "(reported honestly). BM25 is a comparison, not a replacement."
+        )
+    else:
+        st.info(
+            f"BM25 (k1 = {DEFAULT_K1}, b = {DEFAULT_B}) produced a **different** "
+            "top-10 order from the required `lnc.ltc` baseline. The scores are "
+            "on different scales (cosine ∈ [0,1] vs. an unbounded BM25 sum) and "
+            "are **not** directly comparable — only the ranks are. lnc.ltc "
+            "remains the required baseline."
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
 # --------------------------------------------------------------------------
