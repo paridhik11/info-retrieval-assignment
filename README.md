@@ -377,7 +377,7 @@ cosine score, the proximity bonus, the final score, the final rank, each
 document's movement versus the baseline, and a compact baseline-vs-reranked
 ordering comparison.
 
-## Optional Enhancement: Vocabulary-Based Spelling Correction
+## Enhancement: Vocabulary-Based Spelling Correction
 
 `src/spell_corrector.py` adds a **conservative, deterministic, vocabulary-based
 spelling corrector** as an optional enhancement to the free-text search mode.
@@ -477,17 +477,10 @@ proximity search always use the exact user input; they are not affected.
 After correction the corrected query string is passed to `query_vsm()` (or
 `rerank_with_proximity()` if proximity re-ranking is also enabled). The
 corrector does **not** modify document weights, IDF, cosine normalization,
-or any retrieval formula.
-
-### Limitations
-
-Spelling correction is vocabulary-based and conservative. It can correct close
-misspellings of indexed terms (e.g. one or two edits away from a real corpus
-word), but it may leave uncertain terms unchanged or occasionally choose an
-imperfect close candidate when several vocabulary words are equidistant. It
-does not claim to always improve retrieval — it is a best-effort,
+or any retrieval formula. it is a best-effort,
 transparent preprocessing step. No AI, embeddings, external search, or
 semantic model is used.
+
 
 ```bash
 python src/spell_corrector.py   # demo corrections on example queries
