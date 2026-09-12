@@ -52,6 +52,13 @@ from reranker import (  # noqa: E402
     rerank_with_proximity,
 )
 from vsm import N, get_model, query_vsm  # noqa: E402
+from bm25 import (  # noqa: E402
+    DEFAULT_B,
+    DEFAULT_K1,
+    BM25Model,
+    get_model as get_bm25_model,
+    query_bm25,
+)
 
 
 # --------------------------------------------------------------------------
@@ -83,6 +90,11 @@ def model():
 @pytest.fixture(scope="session")
 def pos_index():
     return get_index()
+
+
+@pytest.fixture(scope="session")
+def bm25_model():
+    return get_bm25_model()
 
 
 # ==========================================================================
@@ -398,3 +410,145 @@ def test_reranker_final_score_formula():
         assert row["final_score"] == pytest.approx(
             row["cosine_score"] + alpha * row["proximity_bonus"], abs=1e-12
         )
+
+
+# ==========================================================================
+# BM25 (optional classical IR comparison model)
+# ==========================================================================
+
+def test_bm25_uses_N_100(bm25_model):
+    # BM25 must use the same fixed collection size as the required baseline.
+    assert bm25_model.n == N == 100
+
+
+def test_bm25_avgdl_uses_processed_tokens(bm25_model, documents):
+    # avgdl must be the average number of PROCESSED tokens, not raw characters.
+    expected_total = sum(len(d.tokens) for d in documents)
+    expected_avgdl = expected_total / 100
+    assert bm25_model.avgdl == pytest.approx(expected_avgdl, abs=1e-9)
+
+
+def test_bm25_doc_length_equals_processed_token_count(bm25_model, documents):
+    # |D| for each document is the length of its processed token stream, which
+    # equals the sum of tf over the inverted index (verified both ways).
+    by_id = {d.doc_id: d for d in documents}
+    for doc_id, length in bm25_model.doc_len.items():
+        assert length == len(by_id[doc_id].tokens)
+    # Internal cross-check: token length == inverted-index tf sum (raises if not).
+    bm25_model.verify_lengths_match_index()
+
+
+def test_bm25_idf_formula_is_the_documented_one(bm25_model):
+    # IDF(t) = ln((N - df + 0.5)/(df + 0.5) + 1); always positive.
+    for term in ("cotton", "denim", "shirt", "fabric"):
+        df = bm25_model.index[term]["df"]
+        expected = math.log((100 - df + 0.5) / (df + 0.5) + 1.0)
+        assert bm25_model.idf[term] == pytest.approx(expected, abs=1e-12)
+        assert bm25_model.idf[term] > 0.0  # the +1 keeps every IDF positive
+
+
+def test_bm25_score_formula_single_document(bm25_model):
+    # Hand-recompute the BM25 score for the top document of a two-term query.
+    k1, b = DEFAULT_K1, DEFAULT_B
+    results = bm25_model.query_bm25("cotton denim", top_k=1)
+    assert results, "expected at least one BM25 result"
+    doc_id = results[0]["docID"]
+    dl = bm25_model.doc_len[doc_id]
+    length_norm = 1.0 - b + b * (dl / bm25_model.avgdl)
+    expected = 0.0
+    for term in ("cotton", "denim"):
+        tf = bm25_model.index[term]["postings"].get(doc_id, 0)
+        if not tf:
+            continue
+        df = bm25_model.index[term]["df"]
+        idf = math.log((100 - df + 0.5) / (df + 0.5) + 1.0)
+        expected += idf * (tf * (k1 + 1.0)) / (tf + k1 * length_norm)
+    assert results[0]["score"] == pytest.approx(expected, abs=1e-9)
+
+
+def test_bm25_result_structure_matches_query_vsm(bm25_model):
+    # Results must be structurally compatible with query_vsm (same keys).
+    vsm_keys = set(query_vsm("cotton shirt", top_k=5)[0])
+    bm25_keys = set(bm25_model.query_bm25("cotton shirt", top_k=5)[0])
+    assert vsm_keys == bm25_keys == {"docID", "title", "category", "score"}
+
+
+def test_bm25_unknown_and_empty_queries_are_safe(bm25_model):
+    assert bm25_model.query_bm25("") == []
+    assert bm25_model.query_bm25("!!! ???") == []
+    assert bm25_model.query_bm25("the and of") == []
+    assert bm25_model.query_bm25("zzznotacorpusword") == []
+    # Known + unknown behaves exactly like the known term alone (unknown -> 0).
+    known_only = [r["docID"] for r in bm25_model.query_bm25("cotton")]
+    mixed = [r["docID"] for r in bm25_model.query_bm25("cotton zzznotacorpusword")]
+    assert known_only == mixed
+
+
+def test_bm25_repeated_terms_collapse(bm25_model):
+    # The written BM25 formula sums each query term once (no query-tf factor),
+    # so repeats must not change the ranking.
+    once = [(r["docID"], r["score"]) for r in bm25_model.query_bm25("cotton")]
+    thrice = [
+        (r["docID"], r["score"]) for r in bm25_model.query_bm25("cotton cotton cotton")
+    ]
+    assert once == thrice
+
+
+def test_bm25_ranking_is_deterministic(bm25_model):
+    a = bm25_model.query_bm25("cotton shirt", top_k=10)
+    b = bm25_model.query_bm25("cotton shirt", top_k=10)
+    assert [r["docID"] for r in a] == [r["docID"] for r in b]
+    assert [r["score"] for r in a] == [r["score"] for r in b]
+
+
+def test_bm25_tie_break_is_increasing_docid(bm25_model):
+    results = bm25_model.query_bm25("cotton shirt", top_k=10)
+    for i in range(len(results) - 1):
+        s0, s1 = results[i]["score"], results[i + 1]["score"]
+        if abs(s0 - s1) < 1e-12:
+            assert results[i]["docID"] < results[i + 1]["docID"], (
+                results[i], results[i + 1]
+            )
+
+
+def test_bm25_scores_descending(bm25_model):
+    results = bm25_model.query_bm25("winter jacket", top_k=10)
+    scores = [r["score"] for r in results]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_bm25_top_k_behaviour(bm25_model):
+    assert len(bm25_model.query_bm25("cotton", top_k=3)) == 3
+    assert len(bm25_model.query_bm25("cotton", top_k=10)) <= 10
+
+
+def test_bm25_k1_zero_removes_tf_scaling(bm25_model):
+    # With k1 = 0 the tf factor becomes tf*(1)/(tf) = 1, so each present term
+    # contributes exactly its IDF regardless of tf or document length.
+    doc_scores = bm25_model.query_bm25("cotton denim", top_k=100, k1=0.0)
+    for row in doc_scores:
+        doc_id = row["docID"]
+        expected = sum(
+            bm25_model.idf[t]
+            for t in ("cotton", "denim")
+            if bm25_model.index[t]["postings"].get(doc_id)
+        )
+        assert row["score"] == pytest.approx(expected, abs=1e-9)
+
+
+def test_bm25_does_not_change_lnc_ltc_baseline(model, bm25_model):
+    # Running BM25 must not perturb the required lnc.ltc ranking in any way.
+    before = [(r["docID"], r["score"]) for r in model.query_vsm("cotton denim", top_k=10)]
+    bm25_model.query_bm25("cotton denim", top_k=10)
+    query_bm25("winter jacket", top_k=10)
+    after = [(r["docID"], r["score"]) for r in model.query_vsm("cotton denim", top_k=10)]
+    assert before == after
+
+
+def test_bm25_module_query_wrapper_matches_model(bm25_model):
+    a = [(r["docID"], r["score"]) for r in query_bm25("denim jeans", top_k=10)]
+    b = [
+        (r["docID"], r["score"])
+        for r in bm25_model.query_bm25("denim jeans", top_k=10)
+    ]
+    assert a == b
