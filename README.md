@@ -673,6 +673,6 @@ from the live app and placed in `screenshots/`.
 ## Authors
 
 <!-- Replace with the actual student names before submission -->
-Student 1 — [student1_id]  
-Student 2 — [student2_id]
+Student 1 — Paridhi Kumar 2410110233 
+Student 2 — Parth Agarwal 2410110234
 
