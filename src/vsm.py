@@ -154,6 +154,8 @@ class VectorSpaceModel:
 
         self.doc_norms: dict[str, float] = {}
         for doc_id, weights in self.doc_weights.items():
+            # Euclidean norm of the lnc document vector; stored once so each
+            # query only needs a single divide per candidate, not a re-sum.
             norm = math.sqrt(sum(w * w for w in weights.values()))
             self.doc_norms[doc_id] = norm
 

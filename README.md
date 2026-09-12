@@ -1,22 +1,21 @@
-# CSD358 Information Retrieval — Assignment 1: Clothing Search Engine
+# ClothingSpree — Information Retrieval Assignment 1
 
-A classical clothing search engine using an **inverted index**, **lnc.ltc VSM ranking**,
-**positional phrase/proximity search**, **proximity-aware re-ranking**, and **conservative
-vocabulary-based spelling correction** — built over a corpus of **100 clothing product
-descriptions** (`data/corpus_100.txt`).
+CSD358 | A classical clothing search engine built over a synthetic corpus of **100 clothing product descriptions** (`data/corpus_100.txt`).
 
-The project implements, from first principles, a standard IR pipeline:
+The project implements a standard IR pipeline from first principles — no ML libraries, embeddings, or language models.
 
-- **Pre-processing** — tokenization, case normalization, punctuation removal,
-  Porter stemming, and a documented English stop-word policy (NLTK).
-- **Inverted index** — terms with document frequency (df) and postings
-  `(docID, term frequency)`.
-- **Vector Space Model** — ranked retrieval using the **lnc.ltc** weighting
-  scheme with cosine similarity (implemented directly, not via a library).
-- **Positional index** — postings extended with term positions to support
-  **exact phrase search** and **ordered proximity (`WITHIN/k`) search**.
-- **Streamlit interface** — free-text search plus a phrase/proximity mode.
-- **Evaluation harness** — free-text, phrase, and proximity test queries.
+## Features
+
+- Tokenization, lowercasing, stopword removal, and Porter stemming (one shared pipeline)
+- Inverted index with document frequency (df) and postings (docID → tf)
+- Exact **lnc.ltc** VSM ranking with cosine similarity (implemented by hand)
+- Positional index with term positions stored per document
+- Exact phrase search (consecutive positions, in query order)
+- Ordered proximity search (`WITHIN/k`, maximum positional difference)
+- Optional proximity-aware re-ranking (lnc.ltc cosine + small positional bonus)
+- Optional vocabulary-based spelling correction (conservative edit distance)
+- Streamlit search interface (free-text + phrase/proximity modes)
+- Reproducible evaluation harness and behavioural pytest suite
 
 ## Assignment mapping
 
@@ -83,6 +82,21 @@ python src/index_builder.py
 `pip install` installs NLTK, Streamlit, and pytest. `index_builder.py` parses
 the 100-document corpus and writes `output/inverted_index.json` and
 `output/doc_metadata.json` (used by all later modules).
+
+### Running the project
+
+```bash
+# Run the test suite
+python -m pytest tests/ -q
+
+# Run the evaluation harness (regenerates output/*.md and output/*.json)
+python -m src.evaluate
+
+# Launch the Streamlit interface
+streamlit run src/app.py
+# or, if streamlit is not on your PATH:
+python -m streamlit run src/app.py
+```
 
 ### NLTK data
 
@@ -271,6 +285,7 @@ gracefully (it never crashes on bad input).
 pip install -r requirements.txt   # installs streamlit (and nltk)
 python src/index_builder.py       # builds output/inverted_index.json + doc_metadata.json
 streamlit run src/app.py          # launches the interface at http://localhost:8501
+# or: python -m streamlit run src/app.py
 ```
 
 ### NLTK data
@@ -657,20 +672,14 @@ must be added by the submitters after running `streamlit run src/app.py`.
 
 ## Status
 
-Part A is in place: XML-style corpus parsing, a documented English stopword
-policy with Porter stemming, and a deterministic inverted index (df + tf
-postings) over all 100 documents. Part B is in place: exact `lnc.ltc` cosine
-ranked retrieval in `src/vsm.py`. Part C is in place: a positional index with
-exact phrase search and ordered/unordered `WITHIN/k` proximity search in
-`src/positional_index.py` (`output/positional_index.json`). Part D is in
-place: a Streamlit search interface (`src/app.py`) with free-text ranked
-retrieval and a phrase/proximity mode that surfaces matching positions. The
-**novelty** — proximity-aware re-ranking (`src/reranker.py`) — is in place and
-wired into the free-text UI behind a toggle, keeping the `lnc.ltc` baseline
-available unchanged for comparison. The **optional enhancement** —
-vocabulary-based spelling correction (`src/spell_corrector.py`) — is in place
-and wired into the free-text UI behind an opt-in checkbox, leaving the baseline
-completely unchanged when disabled. Part E is in place: a reproducible
-evaluation and analysis harness (`src/evaluate.py`) that regenerates
-`output/test_results.json`, `output/test_results.md`, and `output/analysis.md`,
-plus a behavioural pytest suite (`tests/test_ir.py`, all tests passing).
+All parts are complete and passing. The full test suite (`python -m pytest tests/ -q`) passes,
+the evaluation harness (`python -m src.evaluate`) regenerates all output files without errors,
+and the Streamlit interface runs cleanly. Screenshots still need to be captured manually
+from the live app and placed in `screenshots/`.
+
+## Authors
+
+<!-- Replace with the actual student names before submission -->
+Student 1 — [student1_id]  
+Student 2 — [student2_id]
+

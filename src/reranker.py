@@ -155,6 +155,7 @@ def _proximity_bonus(
         gap = _min_gap(positions_a, positions_b)
         if gap is None:
             continue  # pair does not co-occur in this document -> contributes 0
+        # Adjacent terms (gap=1) get a bonus of 0.5; farther apart gives less.
         pair_bonus = 1.0 / (1.0 + gap)
         total += pair_bonus
         if closest_pair is None or gap < closest_pair["gap"]:

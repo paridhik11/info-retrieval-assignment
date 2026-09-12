@@ -537,7 +537,7 @@ def _render_proximity(metadata: dict) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="Clothing IR Search Engine",
+        page_title="ClothingSpree Search",
         page_icon="🔎",
         layout="centered",
     )

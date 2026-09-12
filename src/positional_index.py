@@ -319,6 +319,8 @@ class PositionalIndex:
             first_positions = postings_per_term[0][doc_id]["positions"]
             matches: list[list[int]] = []
             for p in first_positions:  # already sorted -> matches stay sorted
+                # All n terms must land at positions p, p+1, ..., p+n-1.
+                # A document where both terms exist but never consecutively is not a match.
                 if all(
                     (p + offset) in position_sets[offset]
                     for offset in range(1, len(terms))
