@@ -1,7 +1,9 @@
 # CSD358 Information Retrieval — Assignment 1: Clothing Search Engine
 
-A small classical Information Retrieval system built over a corpus of **100
-clothing product descriptions** (`data/corpus_100.txt`).
+A classical clothing search engine using an **inverted index**, **lnc.ltc VSM ranking**,
+**positional phrase/proximity search**, **proximity-aware re-ranking**, and **conservative
+vocabulary-based spelling correction** — built over a corpus of **100 clothing product
+descriptions** (`data/corpus_100.txt`).
 
 The project implements, from first principles, a standard IR pipeline:
 
@@ -45,13 +47,12 @@ src/                  IR implementation modules
   index_builder.py    Part A: inverted index (df + postings)
   vsm.py              Part B: Vector Space Model (lnc.ltc cosine)
   positional_index.py Part C: positional index + phrase/proximity search
-  reranker.py         Combines VSM ranking with positional evidence
-  bm25.py             Optional: BM25 ranking model (classical IR comparison)
-  bm25_compare.py     Optional: lnc.ltc vs. BM25 comparison + report writer
+  reranker.py         Novelty: proximity-aware re-ranking (lnc.ltc + positional bonus)
+  spell_corrector.py  Optional enhancement: vocabulary-based spelling correction
   app.py              Part D: Streamlit interface
   evaluate.py         Part E: reproducible evaluation + analysis harness
 tests/
-  test_ir.py          Part E: behavioural pytest suite (51 tests)
+  test_ir.py          Part E: behavioural pytest suite
   run_evaluation.py   Part E: thin wrapper that calls src/evaluate.py
 output/               generated indexes, evaluation results, and analysis
 screenshots/          application / query screenshots
@@ -97,7 +98,7 @@ python -c "import nltk; nltk.download('stopwords')"
 ## Ranked retrieval — exact `lnc.ltc` (Part B)
 
 `src/vsm.py` implements the Vector Space Model with the **`lnc.ltc`** SMART
-weighting scheme by hand (no TF-IDF/BM25/embedding library hides the math).
+weighting scheme by hand (no TF-IDF/embedding library hides the math).
 `lnc.ltc` reads as `ddd.qqq` = (tf) . (df) . (normalization) for the
 **d**ocument and **q**uery sides:
 
@@ -248,13 +249,17 @@ Two primary modes:
 - **Free-text search** — ranked retrieval via `query_vsm()`. Shows the top 10
   results in a table (rank, docID, category, product title, and cosine score
   to 4 decimal places) in the exact required order. An optional
-  **"Use proximity-aware re-ranking"** toggle switches to the novelty
+  **"Proximity-aware re-ranking"** toggle switches to the novelty
   re-ranker (see below); unchecked, it uses the plain `lnc.ltc` baseline.
+  An optional **"Automatically correct spelling mistakes"** checkbox enables
+  the vocabulary-based spelling corrector (see below); disabled by default so
+  the baseline behavior is always available unchanged.
 - **Phrase / proximity search** — a selector between **exact phrase search**
   (`phrase_search()`) and **proximity search** (`proximity_search()`, with
   term 1 / term 2 / `k` / ordered-or-unordered controls). Both display the
   actual matching positions / satisfying position pairs, so the positional
-  index is visibly in use.
+  index is visibly in use. Spelling correction does **not** apply to phrase or
+  proximity inputs; those modes always use the exact user input.
 
 The app also includes an accurate `lnc.ltc` explainer and handles empty
 queries, unknown terms, no results, invalid `k`, and missing index files
@@ -286,9 +291,8 @@ that *extends* the classical system rather than replacing it. It uses only
 information already produced by the required parts — the **`lnc.ltc` VSM**
 (Part B) and the **positional index** (Part C). It introduces **no** LLMs,
 embeddings, neural networks, vector databases, semantic/external search APIs,
-pretrained models, BM25, or any different ranking algorithm. It is a classical
-IR extension that uses positional evidence — not "AI", "semantic search", or
-"machine learning".
+or pretrained models. It is a classical IR extension that uses positional
+evidence — not "AI", "semantic search", or "machine learning".
 
 **Why proximity is a useful signal.** The baseline `lnc.ltc` VSM is a
 *bag-of-words* model: it weighs term importance and vector similarity but
@@ -352,127 +356,127 @@ overtakes `D043`'s `0.2060`, so `D053` rises above the three higher-cosine but
 non-co-occurring documents — exactly the behavior the proximity signal is meant
 to add.
 
-In the **Free-text search** UI, tick **"Use proximity-aware re-ranking"** to
+In the **Free-text search** UI, tick **"Proximity-aware re-ranking"** to
 switch from the baseline to the novelty. When enabled it shows the baseline
 cosine score, the proximity bonus, the final score, the final rank, each
 document's movement versus the baseline, and a compact baseline-vs-reranked
 ordering comparison.
 
-## Optional Classical IR Comparison: BM25
+## Optional Enhancement: Vocabulary-Based Spelling Correction
 
-> **This is an optional experimental extension, not a replacement.** The
-> required assignment baseline is and remains the **`lnc.ltc` Vector Space
-> Model** in `src/vsm.py`. `query_vsm()` is **not** modified. BM25 lives in a
-> separate module (`src/bm25.py`) and is used only to compare two *classical*
-> IR ranking approaches on the same 100-document clothing corpus.
+`src/spell_corrector.py` adds a **conservative, deterministic, vocabulary-based
+spelling corrector** as an optional enhancement to the free-text search mode.
 
-**1. Why BM25 was added.** `lnc.ltc` and BM25 are the two canonical classical
-ranking models. Adding BM25 lets us hold the corpus, preprocessing, inverted
-index, and document statistics fixed and observe how a *different* term-weighting
-and length-normalization scheme reorders the same documents — a concrete,
-explainable comparison rather than an abstract one.
+### What it does and why
 
-**2. `lnc.ltc` remains the required baseline.** BM25 reuses the Part A inverted
-index (`df` + `tf` postings), the Part A document statistics, and the exact same
-`preprocess_text` pipeline. It never calls, wraps, or alters `query_vsm`; the
-required VSM mathematics, `N = 100`, cosine normalization, and docID tie-break
-are untouched. `output/test_results.json` / `output/test_results.md` /
-`output/analysis.md` (the required Part E outputs) are **not** overwritten —
-BM25 writes its own separate pair of files.
+Misspelled query terms (e.g. `cottn` instead of `cotton`) do not exist in the
+inverted-index vocabulary, so the `lnc.ltc` pipeline cannot score them — they
+contribute nothing and the search silently returns fewer or no results. The
+corrector detects these unknown terms and replaces them with the closest known
+vocabulary entry when a safe candidate exists.
 
-**3. The BM25 formula used** (implemented directly in `src/bm25.py`, no library):
+Example:
 
 ```
-BM25(D,Q) = sum over query terms t of
-    IDF(t) * ( tf(t,D) * (k1 + 1) )
-             / ( tf(t,D) + k1 * (1 - b + b * |D| / avgdl) )
-
-IDF(t) = ln( (N - df_t + 0.5) / (df_t + 0.5) + 1 )        (N = 100)
+cottn shirt → cotton shirt
+denimm jeans → denim jeans
 ```
 
-- `tf(t,D)` — raw term frequency of `t` in `D`, read straight from the inverted
-  index postings.
-- `|D|` — **document length = the number of processed (stemmed) tokens in `D`**
-  (the same normalized token sequence the whole system indexes; TITLE+TEXT, not
-  CATEGORY, and never raw character length). Verified equal to the sum of `tf`
-  over the inverted index.
-- `avgdl` — the average processed document length over all `N = 100` documents
-  (here **50.63** tokens).
-- **IDF choice (documented explicitly):** we use the Lucene-style probabilistic
-  IDF with `+ 1` inside the log. The classic `ln((N-df+0.5)/(df+0.5))` can go
-  *negative* for terms in more than half the collection; the `+ 1` keeps the
-  argument `> 1`, so **`IDF(t) > 0` for every term** and no term ever penalizes a
-  document. The natural log is standard for BM25; the base only rescales every
-  score by a constant and therefore does **not** change the BM25 ranking.
+### How it works
 
-**4. The meaning of `k1` and `b`** (defaults `k1 = 1.5`, `b = 0.75`, exposed as
-configurable function parameters, not buried constants):
+1. Each surface query token is preprocessed through the **same pipeline**
+   (`preprocess_text`) as the rest of the system.
+2. If the resulting stem is already in the indexed vocabulary, the token is
+   left **exactly unchanged** (known terms are never modified).
+3. For unknown stems, the corrector scans the indexed vocabulary and computes
+   the **Levenshtein (edit) distance** between the unknown stem and every known
+   vocabulary term.
+4. The candidate with the **smallest edit distance** within the conservative
+   threshold is chosen. Ties are broken by **higher document frequency** (more
+   common terms preferred), then **alphabetical order** (deterministic).
+5. If no vocabulary term falls within the threshold, the original token is kept
+   unchanged (no correction is better than a wrong correction).
 
-- `k1` controls **term-frequency saturation**. Unlike `lnc.ltc`'s ever-growing
-  `1 + log10(tf)`, BM25's tf factor saturates toward `(k1 + 1)`; larger `k1`
-  lets extra occurrences matter for longer, `k1 = 0` collapses tf to a binary
-  "present" signal.
-- `b` controls **document-length normalization strength**. `b = 0` disables
-  length normalization; `b = 1` fully normalizes by `|D|/avgdl`; `0.75` is the
-  standard middle ground.
+**Conservative thresholds (to avoid over-correcting):**
 
-**5. How BM25 differs from `lnc.ltc`.**
+| Term length | Maximum allowed edit distance |
+|-------------|-------------------------------|
+| 1–3 chars   | 1                             |
+| 4–6 chars   | 2                             |
+| 7+ chars    | 2                             |
 
-| Aspect | `lnc.ltc` (required baseline) | BM25 (optional extension) |
-| ------ | ---------------------------- | ------------------------- |
-| Term frequency | `1 + log10(tf)` (unbounded log growth) | `tf*(k1+1)/(tf + k1*…)` (**saturating**) |
-| Length normalization | cosine (Euclidean) norm of the doc vector | `(1 - b + b*|D|/avgdl)` vs. average length |
-| IDF | `log10(N/df)`, applied once on the query side | `ln((N-df+0.5)/(df+0.5)+1)` per term in the sum |
-| Query weighting | `(1+log10(tf_q))·idf`, cosine-normalized | no query-tf factor (each term summed once) |
-| Score range | cosine ∈ [0, 1] | unbounded sum (different scale) |
+Short terms are corrected only with very tight constraints to avoid false
+positives.
 
-Because the score scales differ, only the **rankings** are compared, never the
-raw numbers.
+### What is NOT used
 
-**6. What was observed on this 100-document clothing corpus.** Across 8
-multi-term queries (`python -m src.bm25_compare`), **6 produced a different
-top-10 order** and **2 were identical** (`high waist leggings`, `printed
-saree`). The differences are exactly where the formulas predict:
+- No external API, LLM, embedding model, or semantic search service.
+- No pre-trained language model or neural network.
+- No dictionary other than the indexed vocabulary itself.
 
-- *Document-length normalization, cleanly isolated —* for `breathable fabric`,
-  every top document has `tf = 1` for both terms and identical `df`, so the
-  **only** differentiator is length. BM25 lifts `D011` and `D071` (each `|D| =
-  49`, just under `avgdl = 50.63`) above the `|D| = 50` documents (e.g. `D011`
-  rises from `lnc.ltc` rank 10 to BM25 rank 4, and `D054`/`D071` enter BM25's
-  top-10 while `D084`/`D094` drop out). `lnc.ltc` orders the same documents by
-  full cosine norm instead, giving a different result. This is the textbook
-  BM25 short-document boost.
-- *idf-driven reordering —* for `denim jeans` and `slim fit jeans`, the rare
-  term (`denim`, df 15) dominates the BM25 sum more sharply than it dominates
-  the cosine, nudging documents heavy on the rarer term up a rank.
-- *Honest no-change cases —* the corpus is heavily templated (many documents in
-  a category share near-identical text), so several queries yield the same or
-  tie-broken-identical order in both models. This is reported as-is, not
-  massaged.
+This is a purely classical IR preprocessing step.
 
-We do **not** claim either model is universally better; we report concrete
-cases where they differ and the formula-level reason for each.
-
-**7. This comparison is an experimental extension, not a replacement.** BM25 is
-optional throughout: normal free-text search still uses the required `lnc.ltc`
-ranking, the BM25 comparison in the UI is off by default (an opt-in "Compare
-with BM25" checkbox in Free-text Search), and BM25 has its own output files.
-
-Public API and outputs:
+### Public API
 
 ```python
-query_bm25(query_string, top_k=10, k1=1.5, b=0.75)   # src/bm25.py
+correct_query(query_string, *, enabled=True)
 ```
+
+Returns:
+
+```python
+{
+    "original_query": "cottn shirt",
+    "corrected_query": "cotton shirt",
+    "corrections": [
+        {"original": "cottn", "replacement": "cotton", "distance": 1}
+    ],
+    "changed": True
+}
+```
+
+The original query is always preserved for display. The `corrected_query` is
+passed unchanged into the existing `lnc.ltc` retrieval pipeline.
+
+### UI behavior
+
+In the **Free-text search** mode, tick **"Automatically correct spelling
+mistakes"** to enable the corrector. When disabled (default), the original
+query is used exactly — the baseline behavior is completely preserved.
+
+When a correction is applied, the UI shows:
+
+```
+Original query: cottn shirt
+Showing results for: cotton shirt
+Correction: cottn → cotton
+```
+
+If no corrections were needed, no correction notice is shown.
+
+Spelling correction applies **only** to free-text search. Phrase search and
+proximity search always use the exact user input; they are not affected.
+
+### The corrected query flows into the existing pipeline unchanged
+
+After correction the corrected query string is passed to `query_vsm()` (or
+`rerank_with_proximity()` if proximity re-ranking is also enabled). The
+corrector does **not** modify document weights, IDF, cosine normalization,
+or any retrieval formula.
+
+### Limitations
+
+Spelling correction is vocabulary-based and conservative. It can correct close
+misspellings of indexed terms (e.g. one or two edits away from a real corpus
+word), but it may leave uncertain terms unchanged or occasionally choose an
+imperfect close candidate when several vocabulary words are equidistant. It
+does not claim to always improve retrieval — it is a best-effort,
+transparent preprocessing step. No AI, embeddings, external search, or
+semantic model is used.
 
 ```bash
-python src/bm25.py           # BM25 demo + a hand-checked worked example (viva)
-python -m src.bm25_compare   # writes output/bm25_comparison.json and .md
+python src/spell_corrector.py   # demo corrections on example queries
 ```
-
-- `output/bm25_comparison.json` — machine-readable per-query comparison (both
-  rankings, both score sets, documents that changed rank, documents
-  appearing/disappearing from the top 10).
-- `output/bm25_comparison.md` — the human-readable comparison report.
 
 ## Evaluation & analysis (Part E)
 
@@ -556,18 +560,21 @@ proximity bonus is uniform across the top group). No improvement is fabricated.
 
 ### Automated tests
 
-`tests/test_ir.py` is a behavioural pytest suite (51 tests, including the
-optional BM25 comparison model) covering the
-corpus (N = 100, unique IDs, required fields), preprocessing (lowercasing,
+`tests/test_ir.py` is a behavioural pytest suite covering the corpus
+(N = 100, unique IDs, required fields), preprocessing (lowercasing,
 punctuation, stopwords, stemming, index/query consistency), the inverted index
 (df/tf correctness, valid postings, df ≠ collection frequency), the VSM
 (unknown-term safety, cosine range, determinism, docID tie-break, top-k, and a
 hand-recomputed lnc.ltc single-term check with no idf on documents), the
 positional index (positions recover their tokens, tf = len(positions), phrase
-consecutiveness, phrase order sensitivity, proximity respects k), and the
-reranker (baseline untouched, `alpha = 0` recovers the baseline order,
-deterministic bonuses, no bonus without positional evidence, and the
-`final = cosine + alpha·bonus` formula).
+consecutiveness, phrase order sensitivity, proximity respects k), the reranker
+(baseline untouched, `alpha = 0` recovers the baseline order, deterministic
+bonuses, no bonus without positional evidence, and the
+`final = cosine + alpha·bonus` formula), and the spelling corrector
+(Levenshtein correctness, conservative thresholds, known-term preservation,
+actual corrections for `cottn → cotton` and `denimm → denim`, no over-correction
+of gibberish, determinism, disabled-flag behavior, and independence from phrase
+and proximity search).
 
 ```bash
 python -m pytest tests/ -q
@@ -586,15 +593,14 @@ hand-edited):
 | `test_results.json` | `python -m src.evaluate` | machine-readable results for every evaluation query |
 | `test_results.md` | `python -m src.evaluate` | human-readable results report (tables) |
 | `analysis.md` | `python -m src.evaluate` | viva-oriented concept + positional-impact analysis |
-| `bm25_comparison.json` / `.md` | `python -m src.bm25_compare` | optional BM25 vs. lnc.ltc comparison |
 
 ## Design decisions
 
 - **One shared preprocessing pipeline.** The inverted index, VSM, positional
-  index, phrase/proximity search, and query parsing all call the same
-  `preprocess_text`, so document terms and query terms are always the same
-  stems. `verify_consistency_with_inverted_index` proves the positional index
-  matches Part A's vocabulary, df, and tf.
+  index, phrase/proximity search, spelling corrector, and query parsing all
+  call the same `preprocess_text`, so document terms and query terms are always
+  the same stems. `verify_consistency_with_inverted_index` proves the positional
+  index matches Part A's vocabulary, df, and tf.
 - **TITLE + TEXT are indexed; CATEGORY is display-only.** The title already
   names the garment type, and indexing CATEGORY would uniformly inflate tf for
   every document in a category.
@@ -611,6 +617,9 @@ hand-edited):
   order.
 - **The novelty extends, never replaces, the baseline.** `query_vsm` is called
   unchanged; `alpha = 0` provably recovers the baseline order.
+- **Spelling correction is opt-in and baseline-preserving.** It is disabled by
+  default; when disabled, behavior is identical to the original system. It
+  prepares the query string only and does not touch any retrieval formula.
 
 ## Screenshots
 
@@ -641,6 +650,10 @@ must be added by the submitters after running `streamlit run src/app.py`.
 - The system performs **no** semantic understanding (no synonyms, embeddings,
   transformers, or LLMs). It is a classical lexical + positional IR system by
   design.
+- **Spelling correction is vocabulary-based and conservative.** It can correct
+  close misspellings of indexed terms, but it may leave uncertain terms
+  unchanged or occasionally choose an imperfect close candidate. It is a
+  best-effort preprocessing step, not a guaranteed improvement.
 
 ## Status
 
@@ -654,7 +667,10 @@ place: a Streamlit search interface (`src/app.py`) with free-text ranked
 retrieval and a phrase/proximity mode that surfaces matching positions. The
 **novelty** — proximity-aware re-ranking (`src/reranker.py`) — is in place and
 wired into the free-text UI behind a toggle, keeping the `lnc.ltc` baseline
-available unchanged for comparison. Part E is in place: a reproducible
+available unchanged for comparison. The **optional enhancement** —
+vocabulary-based spelling correction (`src/spell_corrector.py`) — is in place
+and wired into the free-text UI behind an opt-in checkbox, leaving the baseline
+completely unchanged when disabled. Part E is in place: a reproducible
 evaluation and analysis harness (`src/evaluate.py`) that regenerates
 `output/test_results.json`, `output/test_results.md`, and `output/analysis.md`,
-plus a behavioural pytest suite (`tests/test_ir.py`, 51 tests, all passing).
+plus a behavioural pytest suite (`tests/test_ir.py`, all tests passing).

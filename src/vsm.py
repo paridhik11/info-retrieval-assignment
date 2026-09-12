@@ -65,9 +65,8 @@ descriptions). To keep results reproducible across runs, machines, and
 Python dict orderings, we break ties deterministically by *increasing* docID
 rather than relying on insertion order.
 
-This module deliberately does NOT use TF-IDF/BM25/embedding libraries: the
-lnc.ltc arithmetic is spelled out so it can be explained (and hand-checked)
-in a viva.
+This module deliberately does NOT use TF-IDF/embedding libraries: the lnc.ltc
+arithmetic is spelled out so it can be explained (and hand-checked) in a viva.
 """
 
 from __future__ import annotations

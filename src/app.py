@@ -56,15 +56,15 @@ except Exception:
     DEFAULT_ALPHA = 0.15  # type: ignore[assignment]
     _RERANKER_AVAILABLE = False
 
-# BM25 is an optional classical IR comparison — imported defensively so it
-# can never break the required free-text interface if missing.
+# Vocabulary-based spelling correction — optional enhancement.
+# Imported defensively so a missing index file surfaces a clear warning rather
+# than crashing the whole app.
 try:
-    from bm25 import DEFAULT_B, DEFAULT_K1, query_bm25  # type: ignore
-    _BM25_AVAILABLE = True
+    from spell_corrector import correct_query  # type: ignore
+    _SPELL_CORRECTOR_AVAILABLE = True
 except Exception:
-    query_bm25 = None  # type: ignore[assignment]
-    DEFAULT_K1, DEFAULT_B = 1.5, 0.75  # type: ignore[assignment]
-    _BM25_AVAILABLE = False
+    correct_query = None  # type: ignore[assignment]
+    _SPELL_CORRECTOR_AVAILABLE = False
 
 
 # --------------------------------------------------------------------------
@@ -96,32 +96,54 @@ def _positions_to_text(groups: list[list[int]]) -> str:
 
 
 # --------------------------------------------------------------------------
-# lnc.ltc scheme explainer (kept accurate and brief).
+# "How does this search work?" — collapsible explainer at the bottom.
 # --------------------------------------------------------------------------
 
-def render_scheme_explainer() -> None:
-    """Show the lnc.ltc formula in a collapsible block."""
-    with st.expander("How does lnc.ltc ranking work?"):
+def render_how_it_works() -> None:
+    """Show all method explanations in a single collapsible block."""
+    with st.expander("How does this search work?"):
         st.markdown(
             """
-Ranking uses the classical **lnc.ltc** SMART weighting scheme with cosine
-similarity. The notation reads `document-scheme.query-scheme`:
+**Free-text search** uses the required **lnc.ltc Vector Space Model** with cosine
+similarity. Each query term is weighted by log tf × idf; each document term by
+log tf only. Both vectors are cosine-normalised and the final score is their dot
+product (cosine similarity). With N = 100 documents.
 
-| Side | Scheme | Term frequency weight | Document frequency | Normalization |
-|------|--------|-----------------------|--------------------|---------------|
-| **Document** | `lnc` | `1 + log₁₀(tf)` | none (n) | cosine (c) |
-| **Query** | `ltc` | `1 + log₁₀(tf)` | `log₁₀(N / df)` — idf | cosine (c) |
+---
 
-- Documents use log-dampened term frequency with **no idf**: idf is a
-  collection-level property and is applied exactly once, on the query side.
-- Both vectors are cosine-normalized so long documents do not win on length
-  alone.
-- The final score is the dot product of the two unit-length vectors — that is
-  the cosine similarity. With N = 100 (corpus size).
+**lnc.ltc weighting scheme**
 
-This is purely classical IR arithmetic — no embeddings, neural networks, or
-language models anywhere in the system.
-            """
+| Side | Scheme | TF weight | DF weight | Normalisation |
+|------|--------|-----------|-----------|---------------|
+| Document | `lnc` | 1 + log₁₀(tf) | none | cosine |
+| Query | `ltc` | 1 + log₁₀(tf) | log₁₀(N/df) — idf | cosine |
+
+Documents use log-dampened TF with no idf; idf is applied once on the query side.
+Both vectors are cosine-normalised so long documents do not win on length alone.
+
+---
+
+**Phrase search** checks whether all query terms occur at *consecutive* positions
+in the processed token sequence (after stop-word removal and stemming).
+Co-occurrence in the same document is not enough — the terms must be adjacent.
+
+**Proximity search** checks whether two terms occur within *k* positional steps of
+each other in the processed token sequence. `k = 1` means adjacent; `k = 3` allows
+up to two tokens between them.
+
+**Proximity-aware ranking** adds a small positional bonus to the existing VSM cosine
+score: `final_score = cosine + α × proximity_bonus` (α = 0.15 by default).
+The baseline cosine score is unchanged and always shown alongside the final score.
+
+**Spelling correction** compares unknown query terms with the indexed vocabulary
+using conservative edit distance. Only confident, close corrections are applied;
+known terms and uncertain matches are left unchanged. No AI, embeddings, or
+external services are used.
+
+---
+*This is a classical Information Retrieval assignment — no neural networks,
+embeddings, or language models anywhere in the system.*
+"""
         )
 
 
@@ -136,7 +158,6 @@ def render_free_text_mode(metadata: dict) -> None:
         "under the `lnc.ltc` weighting scheme (classical IR, no AI). "
         "The top 10 matching documents are shown."
     )
-    render_scheme_explainer()
 
     query = st.text_input(
         "Query",
@@ -146,37 +167,37 @@ def render_free_text_mode(metadata: dict) -> None:
 
     st.markdown("**Options**")
     apply_novelty = st.checkbox(
-        "Proximity-aware re-ranking",
+        "Use proximity-aware ranking",
         value=False,
         key="cb_novelty",
         help=(
-            "Extension: after the lnc.ltc baseline retrieval, re-orders "
-            "the top candidates using positional proximity — documents where "
-            "the query terms occur close together receive a small bonus "
-            "(alpha = 0.15). The original cosine score is unchanged and "
-            "visible alongside the final score."
+            "After the lnc.ltc baseline retrieval, re-orders the top candidates "
+            "using positional proximity — documents where the query terms occur "
+            "close together receive a small bonus (alpha = 0.15). The original "
+            "cosine score is unchanged and visible alongside the final score."
         ),
     )
     if apply_novelty and not _RERANKER_AVAILABLE:
         st.info(
-            "Proximity-aware re-ranking is not available in this environment. "
+            "Proximity-aware ranking is not available in this environment. "
             "Showing the plain lnc.ltc cosine ranking instead."
         )
 
-    compare_bm25 = st.checkbox(
-        "Compare with BM25 (optional classical IR comparison)",
+    apply_spell_correction = st.checkbox(
+        "Automatically correct spelling",
         value=False,
-        key="cb_bm25",
+        key="cb_spell",
         help=(
-            "Shows a side-by-side of lnc.ltc rank/score vs. BM25 rank/score "
-            "for the same query. BM25 is a classical ranking model, not a "
-            "replacement for the required lnc.ltc baseline."
+            "Unknown query terms are compared against the indexed vocabulary "
+            "using edit distance. Only conservative, close corrections are "
+            "applied; known terms and uncertain matches are left unchanged. "
+            "Uses no AI, embeddings, or external services."
         ),
     )
-    if compare_bm25 and not _BM25_AVAILABLE:
+    if apply_spell_correction and not _SPELL_CORRECTOR_AVAILABLE:
         st.info(
-            "BM25 comparison is not available in this environment. "
-            "Showing the required lnc.ltc ranking only."
+            "Spelling correction is not available in this environment. "
+            "Searching the original query instead."
         )
 
     if not st.button("Search", type="primary", key="free_text_search"):
@@ -186,16 +207,30 @@ def render_free_text_mode(metadata: dict) -> None:
         st.warning("Please enter a query to search.")
         return
 
+    # --- Apply spelling correction (free-text only) ---
+    effective_query = query
+    correction_result = None
+    if apply_spell_correction and _SPELL_CORRECTOR_AVAILABLE:
+        correction_result = correct_query(query, enabled=True)
+        if correction_result["changed"]:
+            effective_query = correction_result["corrected_query"]
+
+    # Show correction notice when a change was made.
+    if correction_result is not None and correction_result["changed"]:
+        st.info(
+            f"**Original query:** {correction_result['original_query']}  \n"
+            f"**Showing results for:** {correction_result['corrected_query']}  \n"
+            + "  \n".join(
+                f"Corrected: **{c['original']}** → **{c['replacement']}**"
+                for c in correction_result["corrections"]
+            )
+        )
+
     use_novelty = apply_novelty and _RERANKER_AVAILABLE
     if use_novelty:
-        _render_reranked_results(query, metadata)
+        _render_reranked_results(effective_query, metadata)
     else:
-        _render_baseline_results(query, metadata)
-
-    # BM25 comparison is rendered after the required lnc.ltc results so the
-    # default view stays focused on the required system.
-    if compare_bm25 and _BM25_AVAILABLE:
-        _render_bm25_comparison(query, metadata)
+        _render_baseline_results(effective_query, metadata)
 
 
 def _render_baseline_results(query: str, metadata: dict) -> None:
@@ -226,8 +261,8 @@ def _render_baseline_results(query: str, metadata: dict) -> None:
             {
                 "Rank": rank,
                 "Doc ID": doc_id,
-                "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
                 "Title": row.get("title") or _meta_field(metadata, doc_id, "title"),
+                "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
                 "Cosine score": f"{row['score']:.4f}",
             }
         )
@@ -261,7 +296,6 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
 
     alpha = comparison["alpha"]
     baseline_order = comparison["baseline_order"]
-    # Map each docID to its baseline rank so the table can show rank movement.
     baseline_rank = {doc_id: i + 1 for i, doc_id in enumerate(baseline_order)}
 
     rows = []
@@ -273,7 +307,6 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
         elif prev == rank:
             movement = "—"
         else:
-            # Positive gain means the document moved up.
             movement = f"▲{prev - rank}" if prev > rank else f"▼{rank - prev}"
         cp = row["closest_pair"]
         closest = (
@@ -283,8 +316,8 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
             {
                 "Rank": rank,
                 "Doc ID": doc_id,
-                "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
                 "Title": row.get("title") or _meta_field(metadata, doc_id, "title"),
+                "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
                 "Cosine score": f"{row['cosine_score']:.4f}",
                 "Proximity bonus": f"{row['proximity_bonus']:.3f}",
                 "Final score": f"{row['final_score']:.4f}",
@@ -295,21 +328,17 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
 
     if comparison["changed"]:
         st.success(
-            f"Proximity-aware re-ranking (alpha = {alpha}) — the ranking "
-            "**changed** relative to the lnc.ltc baseline. "
-            "Formula: `final_score = cosine + alpha × proximity_bonus`."
+            f"Proximity-aware ranking (alpha = {alpha}) — ranking **changed** "
+            "vs the lnc.ltc baseline."
         )
     else:
         st.info(
-            f"Proximity-aware re-ranking (alpha = {alpha}) — the ranking did "
-            "**not** change for this query (proximity bonus was uniform across "
-            "the top group — reported honestly). "
-            "Formula: `final_score = cosine + alpha × proximity_bonus`."
+            f"Proximity-aware ranking (alpha = {alpha}) — ranking did **not** "
+            "change for this query (proximity bonus was uniform across the top group)."
         )
 
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
-    # Expandable side-by-side baseline vs re-ranked ordering.
     with st.expander("Compare baseline vs. re-ranked order"):
         reranked_order = comparison["reranked_order"]
         compare_rows = []
@@ -325,86 +354,6 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
                 }
             )
         st.dataframe(compare_rows, hide_index=True, use_container_width=True)
-
-
-def _render_bm25_comparison(query: str, metadata: dict) -> None:
-    """Render an optional lnc.ltc vs. BM25 side-by-side comparison table.
-
-    Shows the union of both top-10 result sets with each model's rank and
-    score. This is a comparison only — it never alters the required lnc.ltc
-    results already shown above.
-    """
-    try:
-        vsm_results = query_vsm(query, top_k=10)
-        bm25_results = query_bm25(query, top_k=10)  # type: ignore[misc]
-    except FileNotFoundError:
-        st.error(
-            "Index files were not found. Build them first:\n\n"
-            "`python src/index_builder.py`"
-        )
-        return
-    except Exception as exc:
-        st.warning(f"BM25 comparison unavailable ({exc}).")
-        return
-
-    if not vsm_results and not bm25_results:
-        return  # primary view already reported no results
-
-    lnc_by_doc = {
-        row["docID"]: {"rank": i + 1, "score": row["score"]}
-        for i, row in enumerate(vsm_results)
-    }
-    bm25_by_doc = {
-        row["docID"]: {"rank": i + 1, "score": row["score"]}
-        for i, row in enumerate(bm25_results)
-    }
-
-    # Sort the union of both result sets by best rank across either model.
-    all_docs = set(lnc_by_doc) | set(bm25_by_doc)
-
-    def _sort_key(doc_id: str):
-        bm = bm25_by_doc.get(doc_id, {}).get("rank", 999)
-        ln = lnc_by_doc.get(doc_id, {}).get("rank", 999)
-        return (min(bm, ln), bm, ln, doc_id)
-
-    rows = []
-    for doc_id in sorted(all_docs, key=_sort_key):
-        ln = lnc_by_doc.get(doc_id)
-        bm = bm25_by_doc.get(doc_id)
-        rows.append(
-            {
-                "Doc ID": doc_id,
-                "Category": _meta_field(metadata, doc_id, "category"),
-                "Title": _meta_field(metadata, doc_id, "title"),
-                "lnc.ltc rank": ln["rank"] if ln else "—",
-                "lnc.ltc score": f"{ln['score']:.4f}" if ln else "—",
-                "BM25 rank": bm["rank"] if bm else "—",
-                "BM25 score": f"{bm['score']:.4f}" if bm else "—",
-            }
-        )
-
-    same_order = (
-        [r["docID"] for r in vsm_results] == [r["docID"] for r in bm25_results]
-    )
-    st.divider()
-    st.markdown("#### Optional classical IR comparison — lnc.ltc vs. BM25")
-    st.caption(
-        "BM25 scores are on a different, unbounded scale from cosine similarity. "
-        "Only the rank columns are directly comparable."
-    )
-    if same_order:
-        st.info(
-            f"BM25 (k1 = {DEFAULT_K1}, b = {DEFAULT_B}) produced the **same** "
-            "top-10 order as lnc.ltc for this query (reported honestly). "
-            "BM25 is a comparison model, not a replacement."
-        )
-    else:
-        st.info(
-            f"BM25 (k1 = {DEFAULT_K1}, b = {DEFAULT_B}) produced a **different** "
-            "top-10 order from lnc.ltc. The scores use different scales; "
-            "lnc.ltc remains the required baseline."
-        )
-    st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
 # --------------------------------------------------------------------------
@@ -481,8 +430,8 @@ def _render_exact_phrase(metadata: dict) -> None:
         rows.append(
             {
                 "Doc ID": doc_id,
-                "Category": _meta_field(metadata, doc_id, "category"),
                 "Title": _meta_field(metadata, doc_id, "title"),
+                "Category": _meta_field(metadata, doc_id, "category"),
                 "Matching positions": _positions_to_text(row["matches"]),
             }
         )
@@ -568,8 +517,8 @@ def _render_proximity(metadata: dict) -> None:
         rows.append(
             {
                 "Doc ID": doc_id,
-                "Category": _meta_field(metadata, doc_id, "category"),
                 "Title": _meta_field(metadata, doc_id, "title"),
+                "Category": _meta_field(metadata, doc_id, "category"),
                 "Satisfying position pairs": _positions_to_text(row["pairs"]),
             }
         )
@@ -599,8 +548,8 @@ def main() -> None:
         "A classical Information Retrieval system built over **100 clothing "
         "product descriptions**. Retrieval uses the **lnc.ltc Vector Space Model** "
         "with cosine similarity, a positional index for phrase and proximity search, "
-        "and an optional proximity-aware re-ranking extension. "
-        "No AI, embeddings, or language models are used."
+        "proximity-aware re-ranking, and conservative vocabulary-based spelling "
+        "correction. No AI, embeddings, or language models are used."
     )
     st.divider()
 
@@ -633,6 +582,10 @@ def main() -> None:
         render_free_text_mode(metadata)
     else:
         render_phrase_mode(metadata)
+
+    # Collapsible method explainer — hidden until the user opens it.
+    st.divider()
+    render_how_it_works()
 
 
 if __name__ == "__main__":

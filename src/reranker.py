@@ -12,8 +12,8 @@ only information that already exists in the project:
     2. the positional index from Part C (``positional_index``).
 
 It introduces **no** LLMs, embeddings, neural networks, vector databases,
-external/semantic search APIs, pretrained models, BM25, or any different
-ranking algorithm. The baseline lnc.ltc cosine ranking is left completely
+external/semantic search APIs, pretrained models, or any different ranking
+algorithm. The baseline lnc.ltc cosine ranking is left completely
 untouched (``vsm.query_vsm`` is *called*, never modified) so the two rankings
 can be compared side by side.
 

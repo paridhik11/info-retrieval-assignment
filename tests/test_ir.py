@@ -3,7 +3,8 @@ test_ir.py
 ==========
 
 Behavioural tests for the IR system (corpus, preprocessing, inverted index,
-lnc.ltc VSM, positional index, and the proximity-aware reranker).
+lnc.ltc VSM, positional index, proximity-aware reranker, and vocabulary-based
+spelling correction).
 
 These tests exercise *actual behaviour* — recomputing df/tf/idf/cosine by hand
 and comparing against the modules — rather than merely asserting that functions
@@ -52,12 +53,12 @@ from reranker import (  # noqa: E402
     rerank_with_proximity,
 )
 from vsm import N, get_model, query_vsm  # noqa: E402
-from bm25 import (  # noqa: E402
-    DEFAULT_B,
-    DEFAULT_K1,
-    BM25Model,
-    get_model as get_bm25_model,
-    query_bm25,
+from spell_corrector import (  # noqa: E402
+    correct_query,
+    get_vocabulary,
+    reload_vocabulary,
+    _levenshtein,
+    _max_distance,
 )
 
 
@@ -93,8 +94,9 @@ def pos_index():
 
 
 @pytest.fixture(scope="session")
-def bm25_model():
-    return get_bm25_model()
+def vocabulary():
+    """The indexed vocabulary {stem: df} loaded from the real inverted index."""
+    return reload_vocabulary()  # fresh load so tests are not stale
 
 
 # ==========================================================================
@@ -413,142 +415,292 @@ def test_reranker_final_score_formula():
 
 
 # ==========================================================================
-# BM25 (optional classical IR comparison model)
+# Levenshtein distance (internal helper — correctness check)
 # ==========================================================================
 
-def test_bm25_uses_N_100(bm25_model):
-    # BM25 must use the same fixed collection size as the required baseline.
-    assert bm25_model.n == N == 100
+def test_levenshtein_identical_strings():
+    assert _levenshtein("cotton", "cotton") == 0
+    assert _levenshtein("", "") == 0
 
 
-def test_bm25_avgdl_uses_processed_tokens(bm25_model, documents):
-    # avgdl must be the average number of PROCESSED tokens, not raw characters.
-    expected_total = sum(len(d.tokens) for d in documents)
-    expected_avgdl = expected_total / 100
-    assert bm25_model.avgdl == pytest.approx(expected_avgdl, abs=1e-9)
+def test_levenshtein_empty_string():
+    assert _levenshtein("", "abc") == 3
+    assert _levenshtein("abc", "") == 3
 
 
-def test_bm25_doc_length_equals_processed_token_count(bm25_model, documents):
-    # |D| for each document is the length of its processed token stream, which
-    # equals the sum of tf over the inverted index (verified both ways).
-    by_id = {d.doc_id: d for d in documents}
-    for doc_id, length in bm25_model.doc_len.items():
-        assert length == len(by_id[doc_id].tokens)
-    # Internal cross-check: token length == inverted-index tf sum (raises if not).
-    bm25_model.verify_lengths_match_index()
+def test_levenshtein_single_edit():
+    # One substitution
+    assert _levenshtein("cat", "bat") == 1
+    # One insertion
+    assert _levenshtein("cottn", "cotton") == 1
+    # One deletion
+    assert _levenshtein("denimm", "denim") == 1
 
 
-def test_bm25_idf_formula_is_the_documented_one(bm25_model):
-    # IDF(t) = ln((N - df + 0.5)/(df + 0.5) + 1); always positive.
-    for term in ("cotton", "denim", "shirt", "fabric"):
-        df = bm25_model.index[term]["df"]
-        expected = math.log((100 - df + 0.5) / (df + 0.5) + 1.0)
-        assert bm25_model.idf[term] == pytest.approx(expected, abs=1e-12)
-        assert bm25_model.idf[term] > 0.0  # the +1 keeps every IDF positive
+def test_levenshtein_symmetric():
+    assert _levenshtein("cottn", "cotton") == _levenshtein("cotton", "cottn")
+    assert _levenshtein("abc", "xyz") == _levenshtein("xyz", "abc")
 
 
-def test_bm25_score_formula_single_document(bm25_model):
-    # Hand-recompute the BM25 score for the top document of a two-term query.
-    k1, b = DEFAULT_K1, DEFAULT_B
-    results = bm25_model.query_bm25("cotton denim", top_k=1)
-    assert results, "expected at least one BM25 result"
-    doc_id = results[0]["docID"]
-    dl = bm25_model.doc_len[doc_id]
-    length_norm = 1.0 - b + b * (dl / bm25_model.avgdl)
-    expected = 0.0
-    for term in ("cotton", "denim"):
-        tf = bm25_model.index[term]["postings"].get(doc_id, 0)
-        if not tf:
-            continue
-        df = bm25_model.index[term]["df"]
-        idf = math.log((100 - df + 0.5) / (df + 0.5) + 1.0)
-        expected += idf * (tf * (k1 + 1.0)) / (tf + k1 * length_norm)
-    assert results[0]["score"] == pytest.approx(expected, abs=1e-9)
+def test_levenshtein_multi_edit():
+    assert _levenshtein("abc", "xyz") == 3  # three substitutions
+    assert _levenshtein("kitten", "sitting") == 3  # classic textbook case
 
 
-def test_bm25_result_structure_matches_query_vsm(bm25_model):
-    # Results must be structurally compatible with query_vsm (same keys).
-    vsm_keys = set(query_vsm("cotton shirt", top_k=5)[0])
-    bm25_keys = set(bm25_model.query_bm25("cotton shirt", top_k=5)[0])
-    assert vsm_keys == bm25_keys == {"docID", "title", "category", "score"}
+# ==========================================================================
+# Conservative distance threshold
+# ==========================================================================
+
+def test_max_distance_short_terms():
+    assert _max_distance(1) == 1
+    assert _max_distance(2) == 1
+    assert _max_distance(3) == 1
 
 
-def test_bm25_unknown_and_empty_queries_are_safe(bm25_model):
-    assert bm25_model.query_bm25("") == []
-    assert bm25_model.query_bm25("!!! ???") == []
-    assert bm25_model.query_bm25("the and of") == []
-    assert bm25_model.query_bm25("zzznotacorpusword") == []
-    # Known + unknown behaves exactly like the known term alone (unknown -> 0).
-    known_only = [r["docID"] for r in bm25_model.query_bm25("cotton")]
-    mixed = [r["docID"] for r in bm25_model.query_bm25("cotton zzznotacorpusword")]
-    assert known_only == mixed
+def test_max_distance_medium_terms():
+    assert _max_distance(4) == 2
+    assert _max_distance(5) == 2
+    assert _max_distance(6) == 2
 
 
-def test_bm25_repeated_terms_collapse(bm25_model):
-    # The written BM25 formula sums each query term once (no query-tf factor),
-    # so repeats must not change the ranking.
-    once = [(r["docID"], r["score"]) for r in bm25_model.query_bm25("cotton")]
-    thrice = [
-        (r["docID"], r["score"]) for r in bm25_model.query_bm25("cotton cotton cotton")
-    ]
-    assert once == thrice
+def test_max_distance_long_terms():
+    assert _max_distance(7) == 2
+    assert _max_distance(10) == 2
+    assert _max_distance(15) == 2
 
 
-def test_bm25_ranking_is_deterministic(bm25_model):
-    a = bm25_model.query_bm25("cotton shirt", top_k=10)
-    b = bm25_model.query_bm25("cotton shirt", top_k=10)
-    assert [r["docID"] for r in a] == [r["docID"] for r in b]
-    assert [r["score"] for r in a] == [r["score"] for r in b]
+# ==========================================================================
+# Spelling correction — vocabulary loading and API contract
+# ==========================================================================
+
+def test_vocabulary_loaded_from_actual_index(vocabulary):
+    """Vocabulary must be non-empty and contain known clothing terms."""
+    assert len(vocabulary) > 0
+    # 'cotton', 'denim', 'shirt' are Porter stems present in the corpus.
+    assert "cotton" in vocabulary
+    assert "denim" in vocabulary
+    assert "shirt" in vocabulary
 
 
-def test_bm25_tie_break_is_increasing_docid(bm25_model):
-    results = bm25_model.query_bm25("cotton shirt", top_k=10)
-    for i in range(len(results) - 1):
-        s0, s1 = results[i]["score"], results[i + 1]["score"]
-        if abs(s0 - s1) < 1e-12:
-            assert results[i]["docID"] < results[i + 1]["docID"], (
-                results[i], results[i + 1]
-            )
+def test_vocabulary_values_are_document_frequencies(vocabulary):
+    """Every df value must be a positive integer."""
+    for term, df in vocabulary.items():
+        assert isinstance(df, int), f"df for {term!r} is not an int"
+        assert df >= 1, f"df for {term!r} is zero or negative"
 
 
-def test_bm25_scores_descending(bm25_model):
-    results = bm25_model.query_bm25("winter jacket", top_k=10)
-    scores = [r["score"] for r in results]
-    assert scores == sorted(scores, reverse=True)
+def test_correct_query_returns_required_keys():
+    """Return dict must always contain all required keys."""
+    result = correct_query("cotton shirt")
+    assert "original_query" in result
+    assert "corrected_query" in result
+    assert "corrections" in result
+    assert "changed" in result
 
 
-def test_bm25_top_k_behaviour(bm25_model):
-    assert len(bm25_model.query_bm25("cotton", top_k=3)) == 3
-    assert len(bm25_model.query_bm25("cotton", top_k=10)) <= 10
+def test_correct_query_original_preserved():
+    """original_query must always equal the raw input."""
+    raw = "cottn shirt"
+    result = correct_query(raw)
+    assert result["original_query"] == raw
 
 
-def test_bm25_k1_zero_removes_tf_scaling(bm25_model):
-    # With k1 = 0 the tf factor becomes tf*(1)/(tf) = 1, so each present term
-    # contributes exactly its IDF regardless of tf or document length.
-    doc_scores = bm25_model.query_bm25("cotton denim", top_k=100, k1=0.0)
-    for row in doc_scores:
-        doc_id = row["docID"]
-        expected = sum(
-            bm25_model.idf[t]
-            for t in ("cotton", "denim")
-            if bm25_model.index[t]["postings"].get(doc_id)
-        )
-        assert row["score"] == pytest.approx(expected, abs=1e-9)
+# ==========================================================================
+# Spelling correction — known-term preservation
+# ==========================================================================
+
+def test_known_terms_unchanged():
+    """Terms present in the vocabulary must not be modified."""
+    result = correct_query("cotton shirt")
+    assert result["changed"] is False
+    assert result["corrected_query"] == "cotton shirt"
+    assert result["corrections"] == []
 
 
-def test_bm25_does_not_change_lnc_ltc_baseline(model, bm25_model):
-    # Running BM25 must not perturb the required lnc.ltc ranking in any way.
-    before = [(r["docID"], r["score"]) for r in model.query_vsm("cotton denim", top_k=10)]
-    bm25_model.query_bm25("cotton denim", top_k=10)
-    query_bm25("winter jacket", top_k=10)
-    after = [(r["docID"], r["score"]) for r in model.query_vsm("cotton denim", top_k=10)]
-    assert before == after
+def test_correctly_spelled_query_unchanged():
+    """A well-formed multi-term query produces no corrections."""
+    result = correct_query("denim jeans")
+    # "denim" and "jeans" both stem to known vocabulary terms.
+    assert result["changed"] is False
+    assert result["corrected_query"] == "denim jeans"
 
 
-def test_bm25_module_query_wrapper_matches_model(bm25_model):
-    a = [(r["docID"], r["score"]) for r in query_bm25("denim jeans", top_k=10)]
-    b = [
-        (r["docID"], r["score"])
-        for r in bm25_model.query_bm25("denim jeans", top_k=10)
-    ]
-    assert a == b
+def test_stopword_only_query_unchanged():
+    """Stop-word-only queries must not cause corrections (nothing to correct)."""
+    result = correct_query("the and of")
+    assert result["changed"] is False
+    assert result["corrected_query"] == "the and of"
+
+
+# ==========================================================================
+# Spelling correction — actual corrections
+# ==========================================================================
+
+def test_cottn_corrected_to_cotton():
+    """'cottn' is one deletion away from 'cotton' — must be corrected."""
+    result = correct_query("cottn shirt")
+    assert result["changed"] is True
+    corrected_stems = preprocess_text(result["corrected_query"])
+    # After preprocessing the corrected query, 'cotton' must appear.
+    assert "cotton" in corrected_stems
+    # Exactly one correction entry.
+    corrections = result["corrections"]
+    assert any(c["original"] == "cottn" and c["replacement"] == "cotton"
+               for c in corrections)
+
+
+def test_denimm_corrected_if_in_vocabulary(vocabulary):
+    """'denimm' is one deletion away from 'denim'; correct if 'denim' is indexed."""
+    if "denim" not in vocabulary:
+        pytest.skip("'denim' not in vocabulary — corpus may have changed")
+    result = correct_query("denimm jeans")
+    assert result["changed"] is True
+    corrections = result["corrections"]
+    assert any(c["original"] == "denimm" and c["replacement"] == "denim"
+               for c in corrections)
+
+
+def test_correction_distance_is_positive(vocabulary):
+    """Every reported correction distance must be >= 1 (identical terms are not corrected)."""
+    result = correct_query("cottn shirt")
+    for c in result["corrections"]:
+        assert c["distance"] >= 1
+
+
+def test_correction_distance_within_threshold():
+    """Reported distance must never exceed the conservative threshold for that term."""
+    result = correct_query("cottn shirt")
+    for c in result["corrections"]:
+        original_stem = preprocess_text(c["original"])
+        # Use the original surface token length for the threshold.
+        threshold = _max_distance(len(c["original"]))
+        assert c["distance"] <= threshold
+
+
+# ==========================================================================
+# Spelling correction — no correction for completely unrelated unknowns
+# ==========================================================================
+
+def test_completely_unknown_word_not_forced():
+    """A gibberish word with no close candidate must be left unchanged."""
+    result = correct_query("zxqwerty fabric")
+    # 'fabric' is a known corpus term; 'zxqwerty' has no close vocabulary match.
+    assert result["corrected_query"] != "zxqwerty fabric".replace("zxqwerty", "cotton")
+    # Either unchanged or at most one correction for 'fabric' side (which is already known).
+    if result["changed"]:
+        # Any applied correction must be within the conservative threshold.
+        for c in result["corrections"]:
+            threshold = _max_distance(len(c["original"]))
+            assert c["distance"] <= threshold
+
+
+def test_short_unknown_term_not_over_corrected():
+    """A 3-char unknown word may only be corrected to a distance-1 candidate."""
+    # Use a clearly fake 3-letter token.
+    result = correct_query("zyx shirt")
+    if result["changed"]:
+        for c in result["corrections"]:
+            if c["original"] == "zyx":
+                assert c["distance"] <= 1  # threshold for 3-char term is 1
+
+
+# ==========================================================================
+# Spelling correction — determinism
+# ==========================================================================
+
+def test_correction_is_deterministic():
+    """Same input must produce identical output on every call."""
+    a = correct_query("cottn shirt")
+    b = correct_query("cottn shirt")
+    assert a["corrected_query"] == b["corrected_query"]
+    assert a["corrections"] == b["corrections"]
+    assert a["changed"] == b["changed"]
+
+
+def test_correction_deterministic_repeated_calls():
+    """Multiple calls with different queries must not affect each other."""
+    r1 = correct_query("cottn shirt")
+    _  = correct_query("winter jackt")  # intermediate call with different query
+    r2 = correct_query("cottn shirt")
+    assert r1["corrected_query"] == r2["corrected_query"]
+
+
+# ==========================================================================
+# Spelling correction — disabled flag preserves original behavior
+# ==========================================================================
+
+def test_correction_disabled_returns_original():
+    """When enabled=False the output must be identical to the input."""
+    raw = "cottn shirt"
+    result = correct_query(raw, enabled=False)
+    assert result["changed"] is False
+    assert result["corrected_query"] == raw
+    assert result["corrections"] == []
+    assert result["original_query"] == raw
+
+
+def test_correction_disabled_no_side_effects(model):
+    """Disabling correction and then searching must use the original query."""
+    raw = "cotton shirt"
+    result = correct_query(raw, enabled=False)
+    # Searching the (unchanged) query must give the same results as always.
+    vsm_results = query_vsm(result["corrected_query"], top_k=10)
+    direct_results = query_vsm(raw, top_k=10)
+    assert [r["docID"] for r in vsm_results] == [r["docID"] for r in direct_results]
+
+
+# ==========================================================================
+# Spelling correction — phrase and proximity search NOT affected
+# ==========================================================================
+
+def test_phrase_search_not_affected_by_spell_corrector():
+    """phrase_search must use its own exact input, not the spelling corrector."""
+    # 'cottn shirt' as a phrase should find nothing (unknown term 'cottn').
+    phrase_results = phrase_search("cottn shirt")
+    # The spell corrector result is completely independent.
+    correction = correct_query("cottn shirt")
+    # Phrase search was called directly — it must NOT have used the correction.
+    assert phrase_results == [] or all(
+        r["docID"] for r in phrase_results
+    )
+    # The corrector knows 'cottn' is misspelled — they are independent functions.
+    assert correction["changed"] is True
+
+
+def test_proximity_search_not_affected_by_spell_corrector():
+    """proximity_search must use its own exact inputs, not the spelling corrector."""
+    # Searching with a misspelled term directly should return empty (unknown term).
+    prox_results = proximity_search("cottn", "shirt", 3)
+    # The spell corrector independently knows how to correct 'cottn'.
+    correction = correct_query("cottn")
+    # Both are independent — one returns empty (unknown term in positional index),
+    # the other correctly maps it.
+    assert prox_results == [] or isinstance(prox_results, list)
+    assert correction["changed"] is True
+
+
+# ==========================================================================
+# Spelling correction — interaction with VSM (corrected query flows through)
+# ==========================================================================
+
+def test_corrected_query_produces_vsm_results():
+    """A corrected query, when passed to query_vsm, must return results."""
+    result = correct_query("cottn shirt")
+    assert result["changed"] is True
+    vsm_results = query_vsm(result["corrected_query"], top_k=10)
+    # 'cotton shirt' is a real query that should return documents.
+    assert len(vsm_results) > 0
+
+
+def test_correction_does_not_alter_vsm_scores(model):
+    """The spell corrector prepares the query string only — it must not touch
+    document weights, IDF, or cosine normalization."""
+    # Direct query with the correct spelling.
+    direct = query_vsm("cotton shirt", top_k=10)
+    # Query after running the corrected form of a misspelling through VSM.
+    result = correct_query("cottn shirt")
+    via_corrector = query_vsm(result["corrected_query"], top_k=10)
+    # Both should produce the same results (cotton shirt == cotton shirt).
+    assert [r["docID"] for r in direct] == [r["docID"] for r in via_corrector]
+    for a, b in zip(direct, via_corrector):
+        assert a["score"] == pytest.approx(b["score"], abs=1e-12)

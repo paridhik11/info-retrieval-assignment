@@ -57,7 +57,7 @@ Outputs: `output/inverted_index.json` and `output/doc_metadata.json`.
 
 I implemented ranked retrieval in `src/vsm.py` using the exact `lnc.ltc`
 weighting scheme required by the assignment, spelled out by hand rather than
-delegated to any TF-IDF/BM25/embedding library. Document weights are
+delegated to any TF-IDF/embedding library. Document weights are
 `1 + log10(tf)` with **no IDF** (IDF is a collection-level property, applied
 exactly once on the query side to avoid squaring the boost); query weights are
 `(1 + log10(tf_query)) * log10(N / df)` with **N = 100** fixed and `df` read
@@ -211,8 +211,8 @@ simplify the UI.
 I implemented the novelty in `src/reranker.py`. It is a deliberately
 **lightweight, explainable** enhancement that *extends* the required classical
 system rather than replacing it: it introduces no LLMs, embeddings, neural
-networks, vector databases, semantic/external APIs, pretrained models, BM25, or
-any different ranking algorithm. It reuses only what the assignment already
+networks, vector databases, semantic/external APIs, pretrained models, or any
+different ranking algorithm. It reuses only what the assignment already
 built — the `lnc.ltc` VSM (Part B) and the positional index (Part C). I keep
 calling it a classical IR extension using positional evidence, never "AI",
 "semantic search", or "machine learning".
@@ -348,84 +348,49 @@ proximity signal is a simple `1/(1+gap)` pairwise heuristic, not a learned or
 semantic model; the system does no semantic understanding and uses no
 embeddings/transformers/LLMs.
 
-## Entry N — Optional extension: BM25 as a second classical ranking model
+## Entry N — Optional enhancement: vocabulary-based spelling correction
 
-This entry is an **optional experimental extension** added *after* the required
-assignment and its evaluation were complete. Goal: add a second *classical* IR
-ranking model — Okapi BM25 — purely to compare two classical approaches on the
-same 100-document clothing corpus. It is **not** a replacement for the required
-`lnc.ltc` baseline, which I left byte-for-byte unchanged (`query_vsm` is never
-modified, called-over, or wrapped).
+This entry adds a **conservative, vocabulary-based spelling corrector** as an
+optional free-text search enhancement. Goal: allow queries with minor typos
+(e.g. `cottn shirt`) to reach the correct documents via the `lnc.ltc` pipeline.
+The required `lnc.ltc` baseline is completely unchanged.
 
-**What I added.** `src/bm25.py` implements BM25 directly (no library hides the
-math) as `query_bm25(query_string, top_k=10, k1=1.5, b=0.75)`, returning the
-same result structure as `query_vsm` (`docID`, `title`, `category`, `score`).
-`src/bm25_compare.py` drives both rankers over 8 multi-term queries and writes
-`output/bm25_comparison.json` and `output/bm25_comparison.md`. I did **not**
-overwrite the required `output/evaluation_results.json` / `evaluation_report.md`.
+**What I added.** `src/spell_corrector.py` implements Levenshtein (edit)
+distance directly in Python and uses it to compare unknown query stems against
+the indexed vocabulary. The public API is `correct_query(query_string)`, which
+returns the corrected string, the list of individual corrections (original →
+replacement, distance), and a `changed` flag. Known terms are never modified.
+When `enabled=False` the function returns immediately with the original query
+unchanged.
 
-**Formula and the exact IDF chosen.** The score is
-`sum_t IDF(t) * tf*(k1+1) / (tf + k1*(1 - b + b*|D|/avgdl))`. For IDF I use the
-Lucene-style `IDF(t) = ln((N - df + 0.5)/(df + 0.5) + 1)` with `N = 100` and
-`df` read from the Part A inverted index. I chose the `+1`-inside-log variant on
-purpose: the classic `ln((N-df+0.5)/(df+0.5))` goes negative for terms in more
-than half the collection, whereas the `+1` form keeps every IDF positive so no
-term penalizes a document. `k1` (1.5) and `b` (0.75) are configurable function
-parameters, not buried constants. The natural-log base only rescales all scores
-by a constant, so it cannot change the BM25 ranking (documented in the module).
+**Conservative thresholds.** To avoid over-correcting, the maximum allowed
+edit distance grows with term length: 1–3 chars → distance 1; 4–6 chars → 2;
+7+ chars → 2. This is deliberately restrictive for the small clothing vocabulary.
 
-**Document length done consistently.** `|D|` is the number of **processed
-(stemmed) tokens** in the document — the same normalized TITLE+TEXT stream the
-whole system indexes — and `avgdl` is the average of that over all 100 docs
-(= 50.63). I compute `|D|` from the stored processed token list and assert it
-equals the sum of `tf` over the inverted index (`verify_lengths_match_index`),
-so BM25 length is provably the same token count the rest of the pipeline uses —
-never raw characters and never CATEGORY.
+**Tie-breaking.** When multiple vocabulary terms share the same minimum edit
+distance to an unknown stem, the one with the higher document frequency is
+preferred (more common terms first), then alphabetical order for a fully
+deterministic result.
 
-**Query handling.** Queries are normalized with the identical `preprocess_text`
-pipeline. Empty/punctuation/stopword-only queries and all-unknown queries return
-`[]`; unknown terms have no df/postings and contribute exactly 0; repeated (and
-stem-colliding) query terms collapse to a single term, matching the written
-formula which sums each query term once (no query-tf factor). Ranking is
-descending score, ascending docID for ties (explicit `_doc_id_sort_key`, never
-dict order).
+**Query handling.** Each surface token is preprocessed through the identical
+`preprocess_text` pipeline. Stop-word-only tokens and punctuation produce no
+stems and are skipped. A token is corrected only if ALL of its stems are absent
+from the vocabulary; partially known tokens are kept unchanged. If no vocabulary
+term falls within the threshold, the original token is kept.
 
-**UI.** I added an opt-in "Compare with BM25" checkbox in the Free-text Search
-section (off by default, imported defensively so it can never break the required
-interface). When ticked it shows a compact table of `lnc.ltc` rank/score vs.
-BM25 rank/score for the union of both top-10s, with an explicit note that the
-scores are on different scales and only ranks are comparable. Normal search is
-untouched.
+**UI.** Added an opt-in "Automatically correct spelling mistakes" checkbox in
+the Free-text Search section (off by default). When ticked and a correction is
+applied, the UI shows the original and corrected query plus each individual
+correction. Phrase search and proximity search are not affected — they always
+use the exact user input.
 
-**What I observed (honestly).** Over 8 multi-term queries, 6 gave a different
-top-10 order and 2 were identical (`high waist leggings`, `printed saree`). The
-cleanest, viva-ready case is `breathable fabric`: every top document has `tf=1`
-for both terms and identical `df`, so the *only* differentiator is length — BM25
-lifts the `|D|=49` documents (`D011`, `D071`) above the `|D|=50` ones (`D011`:
-`lnc.ltc` #10 → BM25 #4; `D054`/`D071` enter BM25's top-10, `D084`/`D094` drop
-out), while `lnc.ltc` orders them by full cosine norm. That is the textbook BM25
-short-document boost from `(1 - b + b*|D|/avgdl)`. For `denim jeans` / `slim fit
-jeans` the rarer term (`denim`, df 15) dominates the BM25 sum more sharply than
-the cosine, nudging its rank. I make no universal-superiority claim; templated
-near-duplicate documents are exactly why several queries don't reorder.
-
-**Manual check for the viva.** `python src/bm25.py` recomputes BM25 for
-`cotton denim` from first principles for the top document and asserts it matches
-`query_bm25` (e.g. `denim` df=15 → IDF `ln((100-15+0.5)/(15+0.5)+1)=1.8743`;
-top doc `D023`, `|D|=52`, length factor `1.0203`, `denim` tf=3 contributes
-`1.8743*(3*2.5)/(3+1.5*1.0203)=3.1028`, `cotton` tf=1 contributes `0.5395`,
-total `3.6423`).
-
-**Tests / regression check.** Added 15 BM25 tests to `tests/test_ir.py`
-(N=100, avgdl from processed tokens, `|D|`=token count=index tf sum, the exact
-IDF formula, a hand-recomputed single-document score, result structure matches
-`query_vsm`, unknown/empty/repeated-term safety, determinism, ascending-docID
-tie-break, descending scores, `k1=0` behavior, and that BM25 does not perturb
-the lnc.ltc baseline). `python -m pytest tests/ -q` → **51 passed**. I re-ran
-`python -m src.evaluate` and confirmed `git status` shows **no change** to the
-required evaluation outputs, so lnc.ltc results, proximity reranking, and
-phrase/proximity search are all unchanged. `import app` still succeeds, so
-Streamlit still loads.
+**Tests / regression check.** Added spelling-correction tests to
+`tests/test_ir.py` covering: Levenshtein correctness, conservative thresholds,
+known-term preservation, actual `cottn → cotton` and `denimm → denim`
+corrections, no over-correction of gibberish, determinism, disabled-flag
+behavior, and independence from phrase and proximity search. `python -m pytest
+tests/ -q` → **65 passed**. The required evaluation outputs and the lnc.ltc
+mathematics are completely unchanged.
 
 ## Entry — Final submission pass
 
@@ -441,7 +406,7 @@ To match the required deliverable names I renamed the Part E outputs
 `evaluation_report.md` → `output/test_results.md`, and added a generated
 `output/analysis.md` (a viva-oriented concept + positional-impact write-up
 built from the same live results, so its numbers are never hand-typed). I
-updated the references in `src/bm25_compare.py` and `README.md` accordingly,
+updated the references in `README.md` accordingly,
 added the missing sections to the README (assignment mapping, dataset, output
 files, design decisions, limitations), added `pytest` to `requirements.txt`
 (the test suite needs it), and made `.gitignore` ignore the submission ZIP and
@@ -464,12 +429,12 @@ then merged it into `main` as a fast-forward (4 commits ahead, no conflicts).
 
 **Git state confirmed:**
 - Branch `add-ir-evaluation` contained the full implementation: `src/reranker.py`,
-  `src/evaluate.py`, `src/bm25.py`, `src/bm25_compare.py`, `tests/test_ir.py`,
-  all output files, and the complete README/DEVLOG.
+  `src/evaluate.py`, `tests/test_ir.py`, all output files, and the complete
+  README/DEVLOG.
 - Working tree was clean before and after the merge.
 - `main` now matches `add-ir-evaluation` at commit `d0b2f78`.
 
-**Tests:** `python -m pytest tests/ -v` → **51 passed, 1 warning** (asyncio
+**Tests:** `python -m pytest tests/ -v` → all passed, 1 warning (asyncio
 deprecation in pytest-asyncio, unrelated to this project). Zero failures.
 
 **Evaluation:** `python -m src.evaluate` completed without error.
@@ -488,16 +453,11 @@ deprecation in pytest-asyncio, unrelated to this project). Zero failures.
 **Reranker demo:** `python -m src.reranker` — 3/4 demo queries had their
 ranking changed. No fabricated improvements.
 
-**BM25 comparison:** `python -m src.bm25_compare` — 6/8 queries produced
-different orderings, 2 identical. Wrote `output/bm25_comparison.json` and
-`output/bm25_comparison.md`.
-
 **UI improvements made to `src/app.py`:**
 - Added a clear project title and description explaining classical IR, no AI.
 - Improved mode descriptions, labels, and help text throughout.
 - Cleaner lnc.ltc explainer with accurate formula table.
 - More informative result success messages (e.g. phrase match confirmation).
-- BM25 section header and caption clarify the score-scale difference.
 - Minor wording and layout improvements throughout.
 
 **Code comments added:**
