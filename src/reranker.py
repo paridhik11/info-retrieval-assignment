@@ -212,7 +212,8 @@ def rerank_with_proximity(
     pos_index = get_index()
 
     # STEP 1 — Candidate retrieval from the baseline VSM (candidate set only).
-    # We call query_vsm unchanged; the lnc.ltc mathematics is not touched.
+    # Keep the baseline score unchanged and add proximity only during this
+    # optional reranking stage; query_vsm is called but never modified.
     candidates = model.query_vsm(query_string, top_k=candidate_k)
     if not candidates:
         return []
@@ -222,12 +223,13 @@ def rerank_with_proximity(
     # and re-ranking degenerates to the baseline order (reported honestly).
     distinct_terms = _distinct_known_terms(query_string, pos_index)
 
-    # STEP 3 + STEP 4 — proximity bonus per candidate, then combine.
+    # STEP 3 + STEP 4 — compute the proximity bonus per candidate, then combine.
     enriched: list[dict] = []
     for cand in candidates:
         doc_id = cand["docID"]
         cosine_score = cand["score"]
         bonus, closest_pair = _proximity_bonus(doc_id, distinct_terms, pos_index)
+        # final_score = cosine_score + alpha * proximity_bonus
         final_score = cosine_score + alpha * bonus
         enriched.append(
             {

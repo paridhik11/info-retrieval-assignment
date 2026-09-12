@@ -59,14 +59,29 @@ screenshots/          application / query screenshots
 
 ## Setup
 
+Create and activate a virtual environment, then install dependencies and build
+the indexes:
+
+```bash
+python -m venv .venv
+```
+
+```bash
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+```
+
 ```bash
 pip install -r requirements.txt
 python src/index_builder.py
 ```
 
-The first command installs NLTK and Streamlit. The second parses the
-100-document corpus, writes `output/inverted_index.json`, and writes
-`output/doc_metadata.json` for later modules.
+`pip install` installs NLTK, Streamlit, and pytest. `index_builder.py` parses
+the 100-document corpus and writes `output/inverted_index.json` and
+`output/doc_metadata.json` (used by all later modules).
 
 ### NLTK data
 
@@ -596,6 +611,22 @@ hand-edited):
   order.
 - **The novelty extends, never replaces, the baseline.** `query_vsm` is called
   unchanged; `alpha = 0` provably recovers the baseline order.
+
+## Screenshots
+
+The `screenshots/` folder should contain at least the following captures from
+the running Streamlit application:
+
+| Filename | What it shows |
+|----------|---------------|
+| `01_free_text_baseline.png` | Free-text query with lnc.ltc baseline results |
+| `02_proximity_reranking.png` | Free-text query with proximity-aware re-ranking enabled |
+| `03_exact_phrase_positions.png` | Exact phrase search (e.g. `cotton shirt`) showing matching positions |
+| `04_proximity_positions.png` | Proximity search showing satisfying position pairs and the chosen k |
+
+Screenshots are a manual deliverable captured from the live Streamlit app.
+The `screenshots/` folder currently holds a `.gitkeep` placeholder; captures
+must be added by the submitters after running `streamlit run src/app.py`.
 
 ## Limitations
 

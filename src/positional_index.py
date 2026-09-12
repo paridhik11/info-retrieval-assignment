@@ -136,7 +136,8 @@ def build_positional_index(documents: list[Document]) -> dict:
     # term -> docID -> [positions]
     table: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
     for document in documents:
-        # enumerate gives the zero-based position in the processed token stream.
+        # Store positions after preprocessing so phrase and proximity queries
+        # use the same terms and coordinate system as the inverted index.
         for position, term in enumerate(document.tokens):
             table[term][document.doc_id].append(position)
 

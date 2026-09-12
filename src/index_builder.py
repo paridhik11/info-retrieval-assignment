@@ -99,8 +99,10 @@ def build_inverted_index(documents: list[Document]) -> dict:
             tf_table[term][document.doc_id] = tf
 
     index: dict = {}
-    for term in sorted(tf_table):
+    for term in sorted(tf_table):  # sort for deterministic JSON output
         postings = tf_table[term]
+        # df = number of distinct documents containing this term (posting count).
+        # This is NOT collection frequency (sum of tfs).
         ordered = {
             doc_id: int(postings[doc_id])
             for doc_id in sorted(postings, key=_doc_id_sort_key)

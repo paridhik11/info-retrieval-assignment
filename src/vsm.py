@@ -149,9 +149,8 @@ class VectorSpaceModel:
         for term, entry in index.items():
             for doc_id, tf in entry["postings"].items():
                 # tf in the postings is always >= 1, so log10(tf) is defined.
-                # w(d,t) = 1 + log10(tf); the tf = 0 case (weight 0) simply
-                # never appears in a postings list, which is exactly why the
-                # inverted index lets us skip absent terms.
+                # Document weights use logarithmic tf but intentionally do not
+                # include IDF (idf is applied once on the query side only).
                 self.doc_weights.setdefault(doc_id, {})[term] = 1.0 + math.log10(tf)
 
         self.doc_norms: dict[str, float] = {}
@@ -241,7 +240,8 @@ class VectorSpaceModel:
         query_vector = {t: w / q_norm for t, w in raw_query_weights.items()}
 
         # Candidate documents = union of the postings of the query terms.
-        # These are the only documents that can have a non-zero cosine.
+        # Only documents sharing at least one query term can score > 0, so we
+        # avoid scoring all 100 documents against every query.
         candidates: set[str] = set()
         for term in query_vector:
             candidates.update(self.index[term]["postings"].keys())

@@ -143,6 +143,8 @@ def tokenize(text: str) -> list[str]:
     need raw tokens (or that want to inspect the pre-stopword stream) share
     the same first stage as ``preprocess_text``.
     """
+    # Replace punctuation with spaces so "t-shirt" splits into "t" and "shirt"
+    # rather than becoming the opaque token "tshirt".
     normalized = _PUNCT_RE.sub(" ", text.lower())
     return [token for token in normalized.split() if token]
 
@@ -158,6 +160,7 @@ def preprocess_text(text: str) -> list[str]:
     stemmer = get_stemmer()
     tokens: list[str] = []
     for token in tokenize(text):
+        # Remove stopwords before stemming so common words do not enter the index.
         if token in english_stopwords:
             continue
         tokens.append(stemmer.stem(token))

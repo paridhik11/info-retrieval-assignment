@@ -456,3 +456,67 @@ student names still need to be filled in) from the committed tree, excluding
 `.git`, virtual environments, `__pycache__`, and the ZIP itself. **Screenshots
 still need to be captured manually** from the running Streamlit app; the
 `screenshots/` folder currently holds only a `.gitkeep`.
+
+## Entry — Final audit, merge, and submission preparation (Sep 2026)
+
+Performed a complete pre-submission audit on the `add-ir-evaluation` branch,
+then merged it into `main` as a fast-forward (4 commits ahead, no conflicts).
+
+**Git state confirmed:**
+- Branch `add-ir-evaluation` contained the full implementation: `src/reranker.py`,
+  `src/evaluate.py`, `src/bm25.py`, `src/bm25_compare.py`, `tests/test_ir.py`,
+  all output files, and the complete README/DEVLOG.
+- Working tree was clean before and after the merge.
+- `main` now matches `add-ir-evaluation` at commit `d0b2f78`.
+
+**Tests:** `python -m pytest tests/ -v` → **51 passed, 1 warning** (asyncio
+deprecation in pytest-asyncio, unrelated to this project). Zero failures.
+
+**Evaluation:** `python -m src.evaluate` completed without error.
+- Corpus: 100 documents, vocabulary: 124 stems.
+- 12 free-text queries, 7 phrase queries, 5 proximity queries, 2 unknown-term
+  queries, 4 reranking comparisons.
+- Positional Case A: `cotton shirt` — 15 co-occurrence docs vs. 10 phrase
+  matches; D011 is a co-occurrence-only example.
+- Positional Case B: `cotton denim` — D053 rose from baseline rank 6 to
+  reranked rank 3.
+- Reranking changed order for: `cotton denim`, `regular winter`, `jacket festive`.
+  Did not change for: `cotton shirt` (uniform proximity across top group —
+  reported honestly).
+- Wrote `output/test_results.json`, `output/test_results.md`, `output/analysis.md`.
+
+**Reranker demo:** `python -m src.reranker` — 3/4 demo queries had their
+ranking changed. No fabricated improvements.
+
+**BM25 comparison:** `python -m src.bm25_compare` — 6/8 queries produced
+different orderings, 2 identical. Wrote `output/bm25_comparison.json` and
+`output/bm25_comparison.md`.
+
+**UI improvements made to `src/app.py`:**
+- Added a clear project title and description explaining classical IR, no AI.
+- Improved mode descriptions, labels, and help text throughout.
+- Cleaner lnc.ltc explainer with accurate formula table.
+- More informative result success messages (e.g. phrase match confirmation).
+- BM25 section header and caption clarify the score-scale difference.
+- Minor wording and layout improvements throughout.
+
+**Code comments added:**
+- `preprocess.py`: why punctuation becomes spaces, why stopwords are removed
+  before stemming.
+- `index_builder.py`: note that df counts distinct documents, not sum of tfs.
+- `vsm.py`: note that document weights do not include IDF; candidate set
+  comment clarifies efficiency motivation.
+- `positional_index.py`: note why positions are stored after preprocessing.
+- `reranker.py`: clarified that the baseline cosine score is unchanged and
+  added inline `final_score = cosine + alpha * proximity_bonus` annotation.
+
+**README improvements:** added virtual environment setup instructions (venv,
+activate, pip install), and added a Screenshots section documenting the four
+required filenames and what each should show.
+
+**Screenshots:** still pending manual capture from the live Streamlit app.
+The `screenshots/` folder holds only `.gitkeep`. Screenshots must be taken by
+the submitters after running `streamlit run src/app.py`.
+
+**ZIP:** `ir_assignment1_student1_student2.zip` created (placeholder names).
+Real student names must be substituted before final submission.

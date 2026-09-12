@@ -4,24 +4,15 @@ app.py
 
 Part D of the assignment: the Streamlit search interface.
 
-This module is a *thin* presentation layer over the IR engine. All retrieval
-logic lives in the ``src`` modules and is reused verbatim:
+This module is a thin presentation layer over the IR engine. All retrieval
+logic lives in the src modules and is reused verbatim:
 
-    * Free-text ranked retrieval  -> ``vsm.query_vsm``            (Part B, lnc.ltc)
-    * Exact phrase search         -> ``positional_index.phrase_search``   (Part C)
-    * Proximity (WITHIN/k) search -> ``positional_index.proximity_search`` (Part C)
+    * Free-text ranked retrieval   -> vsm.query_vsm            (Part B, lnc.ltc)
+    * Exact phrase search          -> positional_index.phrase_search   (Part C)
+    * Proximity (WITHIN/k) search  -> positional_index.proximity_search (Part C)
 
 No preprocessing, indexing, scoring, or phrase/proximity logic is re-implemented
-here — the app only calls the existing functions and renders their results.
-
-Design goals:
-    * Two primary modes: free-text search and phrase/proximity search.
-    * Show the evidence the assignment requires: cosine scores for ranked
-      retrieval and actual matching positions for positional retrieval.
-    * Never expose raw Python dictionaries; render clean tables instead.
-    * Load the indexes once (cached) rather than rebuilding per interaction.
-    * Fail gracefully on empty queries, unknown terms, no results, invalid k,
-      and missing index files — the app must not crash.
+here. The app only calls the existing functions and renders their results.
 
 Run:
     streamlit run src/app.py
@@ -43,38 +34,30 @@ if str(_SRC_DIR) not in sys.path:
 REPO_ROOT = _SRC_DIR.parent
 DEFAULT_METADATA_PATH = REPO_ROOT / "output" / "doc_metadata.json"
 
-# The IR engine imports can fail if the environment is broken (e.g. NLTK data
-# missing at import time); surface that as a clean error later rather than a
-# blank page.
+# Import the IR engine defensively so a broken environment surfaces a clean
+# error message rather than a blank page or a cryptic import traceback.
 try:
-    from vsm import query_vsm  # Part B
+    from vsm import query_vsm  # Part B lnc.ltc baseline
     from positional_index import phrase_search, proximity_search  # Part C
     _IMPORT_ERROR: Exception | None = None
-except Exception as exc:  # pragma: no cover - defensive UI guard
+except Exception as exc:
     query_vsm = None  # type: ignore[assignment]
     phrase_search = None  # type: ignore[assignment]
     proximity_search = None  # type: ignore[assignment]
     _IMPORT_ERROR = exc
 
-# The novelty re-ranker (proximity-aware re-ranking) is optional. If it cannot
-# be imported we still show the control, but transparently fall back to the
-# plain lnc.ltc VSM ranking. The UI only calls the public entry points; it does
-# not need to know how the proximity algorithm works internally.
+# The proximity-aware reranker is optional. If it cannot be imported, the
+# checkbox is still shown but falls back to the plain lnc.ltc ranking.
 try:
-    from reranker import (  # type: ignore
-        DEFAULT_ALPHA,
-        compare_baseline_and_reranked,
-    )
+    from reranker import DEFAULT_ALPHA, compare_baseline_and_reranked  # type: ignore
     _RERANKER_AVAILABLE = True
 except Exception:
     compare_baseline_and_reranked = None  # type: ignore[assignment]
     DEFAULT_ALPHA = 0.15  # type: ignore[assignment]
     _RERANKER_AVAILABLE = False
 
-# BM25 is an OPTIONAL experimental extension: a second classical ranking model
-# used only to compare against the required lnc.ltc baseline. It is imported
-# defensively so a missing/broken BM25 module can never break the required
-# free-text interface — the comparison control simply degrades to unavailable.
+# BM25 is an optional classical IR comparison — imported defensively so it
+# can never break the required free-text interface if missing.
 try:
     from bm25 import DEFAULT_B, DEFAULT_K1, query_bm25  # type: ignore
     _BM25_AVAILABLE = True
@@ -90,11 +73,7 @@ except Exception:
 
 @st.cache_data(show_spinner=False)
 def load_metadata() -> dict:
-    """Load docID -> {category, title, text} display metadata (Part A output).
-
-    Cached so we read the JSON once. Returns an empty dict if the file is
-    missing; callers degrade to showing just the docID.
-    """
+    """Load docID -> {category, title, text} metadata written by index_builder."""
     try:
         return json.loads(DEFAULT_METADATA_PATH.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -102,45 +81,46 @@ def load_metadata() -> dict:
 
 
 def _meta_field(metadata: dict, doc_id: str, field: str) -> str:
+    """Return a single metadata field for a document, or '—' if absent."""
     entry = metadata.get(doc_id, {})
     value = entry.get(field, "")
     return value if value else "—"
 
 
 def _positions_to_text(groups: list[list[int]]) -> str:
-    """Render a list of position groups as a readable, non-dict string.
+    """Render position groups as a readable string for the results table.
 
-    e.g. ``[[14, 15], [20, 21]]`` -> ``"[14, 15]  •  [20, 21]"``.
+    e.g. [[14, 15], [20, 21]] -> '[14, 15]   •   [20, 21]'
     """
     return "   •   ".join("[" + ", ".join(str(p) for p in g) + "]" for g in groups)
 
 
 # --------------------------------------------------------------------------
-# lnc.ltc explanation (kept accurate, not misleading).
+# lnc.ltc scheme explainer (kept accurate and brief).
 # --------------------------------------------------------------------------
 
 def render_scheme_explainer() -> None:
-    with st.expander("What does the `lnc.ltc` weighting mean?"):
+    """Show the lnc.ltc formula in a collapsible block."""
+    with st.expander("How does lnc.ltc ranking work?"):
         st.markdown(
             """
-Free-text ranking uses the classic **`lnc.ltc`** SMART weighting scheme with
-cosine similarity. The notation is `ddd.qqq` — the first triple is the
-**document** side, the second is the **query** side, each read as
-*(term-frequency) . (document-frequency) . (normalization)*:
+Ranking uses the classical **lnc.ltc** SMART weighting scheme with cosine
+similarity. The notation reads `document-scheme.query-scheme`:
 
-| Side | Scheme | Term frequency | Document frequency | Normalization |
-|------|--------|----------------|--------------------|----------------|
-| **Document** | `lnc` | `1 + log₁₀(tf)` | none | cosine |
-| **Query** | `ltc` | `1 + log₁₀(tf)` | `log₁₀(N / df)` (idf) | cosine |
+| Side | Scheme | Term frequency weight | Document frequency | Normalization |
+|------|--------|-----------------------|--------------------|---------------|
+| **Document** | `lnc` | `1 + log₁₀(tf)` | none (n) | cosine (c) |
+| **Query** | `ltc` | `1 + log₁₀(tf)` | `log₁₀(N / df)` — idf | cosine (c) |
 
-- **Documents** use **log term-frequency** weighting with **no idf**.
-- **Queries** use **log term-frequency × idf**.
-- **Both** vectors are **cosine-normalized**, and the score is their dot
-  product (the cosine similarity).
+- Documents use log-dampened term frequency with **no idf**: idf is a
+  collection-level property and is applied exactly once, on the query side.
+- Both vectors are cosine-normalized so long documents do not win on length
+  alone.
+- The final score is the dot product of the two unit-length vectors — that is
+  the cosine similarity. With N = 100 (corpus size).
 
-idf is applied **once**, on the query side, so a rare word still boosts the
-ranking without double-counting. Cosine normalization stops long documents
-from winning on length alone. Here `N = 100` (the corpus size).
+This is purely classical IR arithmetic — no embeddings, neural networks, or
+language models anywhere in the system.
             """
         )
 
@@ -152,51 +132,54 @@ from winning on length alone. Here `N = 100` (the corpus size).
 def render_free_text_mode(metadata: dict) -> None:
     st.subheader("Free-text search")
     st.write(
-        "Type a natural-language query. Documents are ranked by cosine "
-        "similarity under the `lnc.ltc` scheme and the top 10 are shown."
+        "Type a natural-language query. Results are ranked by **cosine similarity** "
+        "under the `lnc.ltc` weighting scheme (classical IR, no AI). "
+        "The top 10 matching documents are shown."
     )
     render_scheme_explainer()
 
     query = st.text_input(
-        "Search query",
+        "Query",
         key="free_text_query",
         placeholder="e.g. cotton kurta for men",
     )
 
+    st.markdown("**Options**")
     apply_novelty = st.checkbox(
-        "Use proximity-aware re-ranking",
+        "Proximity-aware re-ranking",
         value=False,
+        key="cb_novelty",
         help=(
-            "Novelty: re-orders the lnc.ltc candidate set using positional "
-            "proximity — documents where the query terms occur close together "
-            "are rewarded. It is a controlled secondary signal (small alpha) "
-            "on top of the classical cosine ranking, not a replacement for it."
+            "Extension: after the lnc.ltc baseline retrieval, re-orders "
+            "the top candidates using positional proximity — documents where "
+            "the query terms occur close together receive a small bonus "
+            "(alpha = 0.15). The original cosine score is unchanged and "
+            "visible alongside the final score."
         ),
     )
     if apply_novelty and not _RERANKER_AVAILABLE:
         st.info(
-            "Proximity-aware re-ranking is unavailable in this environment — "
-            "showing the plain `lnc.ltc` cosine ranking instead."
+            "Proximity-aware re-ranking is not available in this environment. "
+            "Showing the plain lnc.ltc cosine ranking instead."
         )
 
     compare_bm25 = st.checkbox(
-        "Compare with BM25",
+        "Compare with BM25 (optional classical IR comparison)",
         value=False,
+        key="cb_bm25",
         help=(
-            "Optional experimental extension: also rank with a second classical "
-            "IR model (Okapi BM25, k1=1.5, b=0.75) and show a compact "
-            "side-by-side of lnc.ltc rank/score vs. BM25 rank/score. This is a "
-            "comparison only — lnc.ltc remains the required baseline ranking."
+            "Shows a side-by-side of lnc.ltc rank/score vs. BM25 rank/score "
+            "for the same query. BM25 is a classical ranking model, not a "
+            "replacement for the required lnc.ltc baseline."
         ),
     )
     if compare_bm25 and not _BM25_AVAILABLE:
         st.info(
-            "BM25 comparison is unavailable in this environment — showing the "
-            "required `lnc.ltc` ranking only."
+            "BM25 comparison is not available in this environment. "
+            "Showing the required lnc.ltc ranking only."
         )
 
-    search = st.button("Search", type="primary", key="free_text_search")
-    if not search:
+    if not st.button("Search", type="primary", key="free_text_search"):
         return
 
     if not query.strip():
@@ -209,35 +192,33 @@ def render_free_text_mode(metadata: dict) -> None:
     else:
         _render_baseline_results(query, metadata)
 
-    # Optional, non-intrusive: only rendered when the user asks for it, and
-    # always AFTER the required lnc.ltc results, so the default interface stays
-    # focused on the required system.
+    # BM25 comparison is rendered after the required lnc.ltc results so the
+    # default view stays focused on the required system.
     if compare_bm25 and _BM25_AVAILABLE:
         _render_bm25_comparison(query, metadata)
 
 
 def _render_baseline_results(query: str, metadata: dict) -> None:
-    """Plain lnc.ltc cosine ranking (Part B baseline, unchanged)."""
+    """Render the plain lnc.ltc cosine ranking (Part B baseline)."""
     try:
         results = query_vsm(query, top_k=10)
     except FileNotFoundError:
         st.error(
-            "Index files were not found. Please build the indexes first:\n\n"
+            "Index files were not found. Build them first:\n\n"
             "`python src/index_builder.py`"
         )
         return
-    except Exception as exc:  # pragma: no cover - defensive UI guard
+    except Exception as exc:
         st.error(f"Search failed: {exc}")
         return
 
     if not results:
         st.info(
-            "No matching documents. Every query term may be unknown to the "
-            "corpus or filtered out as a stop word — try different terms."
+            "No matching documents found. Every query term may be absent from "
+            "the corpus vocabulary or removed as a stop word. Try different terms."
         )
         return
 
-    # Preserve the exact ranking order returned by query_vsm.
     rows = []
     for rank, row in enumerate(results, start=1):
         doc_id = row["docID"]
@@ -246,42 +227,41 @@ def _render_baseline_results(query: str, metadata: dict) -> None:
                 "Rank": rank,
                 "Doc ID": doc_id,
                 "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
-                "Product title": row.get("title") or _meta_field(metadata, doc_id, "title"),
+                "Title": row.get("title") or _meta_field(metadata, doc_id, "title"),
                 "Cosine score": f"{row['score']:.4f}",
             }
         )
 
-    st.success(f"Showing top {len(rows)} result(s) — baseline `lnc.ltc` ranking.")
+    st.success(f"Top {len(rows)} result(s) — lnc.ltc baseline ranking.")
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
 def _render_reranked_results(query: str, metadata: dict) -> None:
-    """Novelty: proximity-aware re-ranking, with baseline comparison."""
+    """Render the proximity-aware re-ranking alongside the baseline cosine score."""
     try:
         comparison = compare_baseline_and_reranked(query, top_k=10)  # type: ignore[misc]
     except FileNotFoundError:
         st.error(
-            "Index files were not found. Please build the indexes first:\n\n"
+            "Index files were not found. Build them first:\n\n"
             "`python src/index_builder.py`"
         )
         return
-    except Exception as exc:  # pragma: no cover - defensive UI guard
-        st.warning(f"Re-ranking failed ({exc}); showing plain cosine order.")
+    except Exception as exc:
+        st.warning(f"Re-ranking failed ({exc}); falling back to plain cosine order.")
         _render_baseline_results(query, metadata)
         return
 
     reranked = comparison["reranked"]
     if not reranked:
         st.info(
-            "No matching documents. Every query term may be unknown to the "
-            "corpus or filtered out as a stop word — try different terms."
+            "No matching documents found. Every query term may be absent from "
+            "the corpus vocabulary or removed as a stop word. Try different terms."
         )
         return
 
     alpha = comparison["alpha"]
     baseline_order = comparison["baseline_order"]
-
-    # Map each docID to its baseline rank so we can show how it moved.
+    # Map each docID to its baseline rank so the table can show rank movement.
     baseline_rank = {doc_id: i + 1 for i, doc_id in enumerate(baseline_order)}
 
     rows = []
@@ -293,6 +273,7 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
         elif prev == rank:
             movement = "—"
         else:
+            # Positive gain means the document moved up.
             movement = f"▲{prev - rank}" if prev > rank else f"▼{rank - prev}"
         cp = row["closest_pair"]
         closest = (
@@ -303,7 +284,7 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
                 "Rank": rank,
                 "Doc ID": doc_id,
                 "Category": row.get("category") or _meta_field(metadata, doc_id, "category"),
-                "Product title": row.get("title") or _meta_field(metadata, doc_id, "title"),
+                "Title": row.get("title") or _meta_field(metadata, doc_id, "title"),
                 "Cosine score": f"{row['cosine_score']:.4f}",
                 "Proximity bonus": f"{row['proximity_bonus']:.3f}",
                 "Final score": f"{row['final_score']:.4f}",
@@ -314,20 +295,22 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
 
     if comparison["changed"]:
         st.success(
-            f"Proximity-aware re-ranking (alpha = {alpha}) — the ordering "
-            "**changed** relative to the baseline. `final_score = cosine + "
-            "alpha × proximity_bonus`."
+            f"Proximity-aware re-ranking (alpha = {alpha}) — the ranking "
+            "**changed** relative to the lnc.ltc baseline. "
+            "Formula: `final_score = cosine + alpha × proximity_bonus`."
         )
     else:
         st.info(
-            f"Proximity-aware re-ranking (alpha = {alpha}) — the proximity "
-            "signal did **not** change the top-10 ordering for this query "
-            "(reported honestly). `final_score = cosine + alpha × "
-            "proximity_bonus`."
+            f"Proximity-aware re-ranking (alpha = {alpha}) — the ranking did "
+            "**not** change for this query (proximity bonus was uniform across "
+            "the top group — reported honestly). "
+            "Formula: `final_score = cosine + alpha × proximity_bonus`."
         )
+
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
-    with st.expander("Compare baseline vs. re-ranked ordering"):
+    # Expandable side-by-side baseline vs re-ranked ordering.
+    with st.expander("Compare baseline vs. re-ranked order"):
         reranked_order = comparison["reranked_order"]
         compare_rows = []
         for i in range(max(len(baseline_order), len(reranked_order))):
@@ -345,28 +328,27 @@ def _render_reranked_results(query: str, metadata: dict) -> None:
 
 
 def _render_bm25_comparison(query: str, metadata: dict) -> None:
-    """Optional extension: compact lnc.ltc vs. BM25 top-10 comparison.
+    """Render an optional lnc.ltc vs. BM25 side-by-side comparison table.
 
-    Shows, for the union of both models' top-10, each document's lnc.ltc rank
-    and cosine score alongside its BM25 rank and BM25 score. This is a
-    comparison view only — it never alters the required lnc.ltc results already
-    shown above.
+    Shows the union of both top-10 result sets with each model's rank and
+    score. This is a comparison only — it never alters the required lnc.ltc
+    results already shown above.
     """
     try:
         vsm_results = query_vsm(query, top_k=10)
         bm25_results = query_bm25(query, top_k=10)  # type: ignore[misc]
     except FileNotFoundError:
         st.error(
-            "Index files were not found. Please build the indexes first:\n\n"
+            "Index files were not found. Build them first:\n\n"
             "`python src/index_builder.py`"
         )
         return
-    except Exception as exc:  # pragma: no cover - defensive UI guard
+    except Exception as exc:
         st.warning(f"BM25 comparison unavailable ({exc}).")
         return
 
     if not vsm_results and not bm25_results:
-        return  # nothing to compare; the primary view already reported no hits.
+        return  # primary view already reported no results
 
     lnc_by_doc = {
         row["docID"]: {"rank": i + 1, "score": row["score"]}
@@ -377,8 +359,7 @@ def _render_bm25_comparison(query: str, metadata: dict) -> None:
         for i, row in enumerate(bm25_results)
     }
 
-    # Union of both top-10 sets, ordered by BM25 rank then lnc.ltc rank so the
-    # table reads top-down; documents missing from a model show "—".
+    # Sort the union of both result sets by best rank across either model.
     all_docs = set(lnc_by_doc) | set(bm25_by_doc)
 
     def _sort_key(doc_id: str):
@@ -394,7 +375,7 @@ def _render_bm25_comparison(query: str, metadata: dict) -> None:
             {
                 "Doc ID": doc_id,
                 "Category": _meta_field(metadata, doc_id, "category"),
-                "Product title": _meta_field(metadata, doc_id, "title"),
+                "Title": _meta_field(metadata, doc_id, "title"),
                 "lnc.ltc rank": ln["rank"] if ln else "—",
                 "lnc.ltc score": f"{ln['score']:.4f}" if ln else "—",
                 "BM25 rank": bm["rank"] if bm else "—",
@@ -402,22 +383,26 @@ def _render_bm25_comparison(query: str, metadata: dict) -> None:
             }
         )
 
-    same_order = [r["docID"] for r in vsm_results] == [r["docID"] for r in bm25_results]
+    same_order = (
+        [r["docID"] for r in vsm_results] == [r["docID"] for r in bm25_results]
+    )
     st.divider()
-    st.markdown("#### Optional comparison — `lnc.ltc` vs. BM25")
+    st.markdown("#### Optional classical IR comparison — lnc.ltc vs. BM25")
+    st.caption(
+        "BM25 scores are on a different, unbounded scale from cosine similarity. "
+        "Only the rank columns are directly comparable."
+    )
     if same_order:
         st.info(
             f"BM25 (k1 = {DEFAULT_K1}, b = {DEFAULT_B}) produced the **same** "
-            "top-10 order as the required `lnc.ltc` baseline for this query "
-            "(reported honestly). BM25 is a comparison, not a replacement."
+            "top-10 order as lnc.ltc for this query (reported honestly). "
+            "BM25 is a comparison model, not a replacement."
         )
     else:
         st.info(
             f"BM25 (k1 = {DEFAULT_K1}, b = {DEFAULT_B}) produced a **different** "
-            "top-10 order from the required `lnc.ltc` baseline. The scores are "
-            "on different scales (cosine ∈ [0,1] vs. an unbounded BM25 sum) and "
-            "are **not** directly comparable — only the ranks are. lnc.ltc "
-            "remains the required baseline."
+            "top-10 order from lnc.ltc. The scores use different scales; "
+            "lnc.ltc remains the required baseline."
         )
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
@@ -427,17 +412,21 @@ def _render_bm25_comparison(query: str, metadata: dict) -> None:
 # --------------------------------------------------------------------------
 
 def render_phrase_mode(metadata: dict) -> None:
-    st.subheader("Phrase / proximity search")
+    st.subheader("Phrase and proximity search")
     st.write(
-        "These searches use the **positional index**. Matching term positions "
-        "are shown as evidence that positions — not just word presence — drive "
-        "the result. Positions are zero-based indices into each document's "
-        "processed token stream."
+        "These searches use the **positional index**: every token's position in "
+        "the processed document is stored so we can check whether terms are "
+        "adjacent (phrase) or within *k* positions of each other (proximity). "
+        "Matching positions are shown as evidence."
+    )
+    st.caption(
+        "Positions are zero-based indices into the *processed* token stream "
+        "(after stopword removal and stemming)."
     )
 
     search_kind = st.radio(
         "Search type",
-        options=["Exact phrase search", "Proximity search"],
+        options=["Exact phrase search", "Proximity search (WITHIN/k)"],
         horizontal=True,
         key="positional_kind",
     )
@@ -449,8 +438,11 @@ def render_phrase_mode(metadata: dict) -> None:
 
 
 def _render_exact_phrase(metadata: dict) -> None:
-    st.markdown("**Exact phrase search** — terms must appear in order at "
-                "consecutive positions.")
+    st.markdown(
+        "**Exact phrase search** — all words must appear in the given order at "
+        "consecutive positions. Mere co-occurrence of the words in a document "
+        "is not enough."
+    )
     phrase = st.text_input(
         "Phrase",
         key="phrase_query",
@@ -467,18 +459,19 @@ def _render_exact_phrase(metadata: dict) -> None:
         results = phrase_search(phrase)
     except FileNotFoundError:
         st.error(
-            "Index files were not found. Please build the indexes first:\n\n"
+            "Index files were not found. Build them first:\n\n"
             "`python src/positional_index.py`"
         )
         return
-    except Exception as exc:  # pragma: no cover - defensive UI guard
+    except Exception as exc:
         st.error(f"Phrase search failed: {exc}")
         return
 
     if not results:
         st.info(
             "No documents contain this exact phrase. A term may be unknown to "
-            "the corpus, or the words never occur adjacently."
+            "the corpus vocabulary, or the words never occur adjacently in any "
+            "document."
         )
         return
 
@@ -489,20 +482,24 @@ def _render_exact_phrase(metadata: dict) -> None:
             {
                 "Doc ID": doc_id,
                 "Category": _meta_field(metadata, doc_id, "category"),
-                "Product title": _meta_field(metadata, doc_id, "title"),
+                "Title": _meta_field(metadata, doc_id, "title"),
                 "Matching positions": _positions_to_text(row["matches"]),
             }
         )
 
-    st.success(f"Found the phrase in {len(rows)} document(s).")
+    st.success(
+        f"Found the exact phrase in **{len(rows)}** document(s). "
+        "Each position group is [start, start+1, ...] — strictly consecutive."
+    )
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
 def _render_proximity(metadata: dict) -> None:
     st.markdown(
-        "**Proximity search** — the two terms must occur within `k` positions "
-        "of each other. `k` is the *maximum positional difference* "
-        "(so `k = 1` means adjacent)."
+        "**Proximity search (WITHIN/k)** — the two terms must occur within "
+        "`k` positions of each other. `k` is the *maximum positional difference*, "
+        "not the count of words in between: `k = 1` means adjacent, `k = 3` "
+        "allows up to two tokens between them."
     )
     col1, col2 = st.columns(2)
     with col1:
@@ -513,12 +510,13 @@ def _render_proximity(metadata: dict) -> None:
     col3, col4 = st.columns(2)
     with col3:
         k = st.number_input(
-            "k (maximum positional difference)",
+            "k — maximum positional difference",
             min_value=1,
             max_value=100,
             value=3,
             step=1,
             key="prox_k",
+            help="k=1: adjacent; k=3: up to 2 tokens between the terms.",
         )
     with col4:
         order = st.radio(
@@ -532,7 +530,7 @@ def _render_proximity(metadata: dict) -> None:
         return
 
     if not term1.strip() or not term2.strip():
-        st.warning("Please enter both terms to search.")
+        st.warning("Please enter both terms.")
         return
 
     try:
@@ -548,19 +546,19 @@ def _render_proximity(metadata: dict) -> None:
         results = proximity_search(term1, term2, k_value, ordered=ordered)
     except FileNotFoundError:
         st.error(
-            "Index files were not found. Please build the indexes first:\n\n"
+            "Index files were not found. Build them first:\n\n"
             "`python src/positional_index.py`"
         )
         return
-    except Exception as exc:  # pragma: no cover - defensive UI guard
+    except Exception as exc:
         st.error(f"Proximity search failed: {exc}")
         return
 
     if not results:
         st.info(
-            "No documents satisfy this proximity constraint. A term may be "
-            "unknown to the corpus, or the words never occur within `k` "
-            "positions — try a larger `k` or the unordered option."
+            "No documents satisfy this constraint. A term may be unknown to the "
+            "corpus, or the words never occur within the specified distance. "
+            "Try a larger k or the unordered option."
         )
         return
 
@@ -571,15 +569,15 @@ def _render_proximity(metadata: dict) -> None:
             {
                 "Doc ID": doc_id,
                 "Category": _meta_field(metadata, doc_id, "category"),
-                "Product title": _meta_field(metadata, doc_id, "title"),
+                "Title": _meta_field(metadata, doc_id, "title"),
                 "Satisfying position pairs": _positions_to_text(row["pairs"]),
             }
         )
 
     tag = "ordered" if ordered else "unordered"
     st.success(
-        f"Found {len(rows)} document(s) with the terms within {k_value} "
-        f"position(s) ({tag})."
+        f"Found **{len(rows)}** document(s) where the terms are within "
+        f"{k_value} position(s) of each other ({tag})."
     )
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
@@ -589,30 +587,40 @@ def _render_proximity(metadata: dict) -> None:
 # --------------------------------------------------------------------------
 
 def main() -> None:
-    st.set_page_config(page_title="Clothing Search Engine", page_icon="🔎")
-    st.title("Clothing Search Engine")
-    st.caption(
-        "A classical Information Retrieval demo over 100 clothing product "
-        "descriptions — Vector Space Model ranking plus positional "
-        "phrase/proximity search."
+    st.set_page_config(
+        page_title="Clothing IR Search Engine",
+        page_icon="🔎",
+        layout="centered",
     )
+
+    # Project header
+    st.title("Clothing Product Search Engine")
+    st.markdown(
+        "A classical Information Retrieval system built over **100 clothing "
+        "product descriptions**. Retrieval uses the **lnc.ltc Vector Space Model** "
+        "with cosine similarity, a positional index for phrase and proximity search, "
+        "and an optional proximity-aware re-ranking extension. "
+        "No AI, embeddings, or language models are used."
+    )
+    st.divider()
 
     if _IMPORT_ERROR is not None:
         st.error(
-            "The IR engine could not be loaded. Make sure dependencies are "
+            "The IR engine could not be loaded. Check that dependencies are "
             "installed (`pip install -r requirements.txt`) and the indexes are "
-            f"built.\n\nDetails: {_IMPORT_ERROR}"
+            f"built (`python src/index_builder.py`).\n\nDetails: {_IMPORT_ERROR}"
         )
         return
 
     metadata = load_metadata()
     if not metadata:
         st.warning(
-            "Document metadata was not found (`output/doc_metadata.json`). "
-            "Results will show document IDs only. Build it with "
-            "`python src/index_builder.py`."
+            "Document metadata not found (`output/doc_metadata.json`). "
+            "Run `python src/index_builder.py` to build it. "
+            "Results will show document IDs only until then."
         )
 
+    # Mode selector
     mode = st.radio(
         "Search mode",
         options=["Free-text search", "Phrase / proximity search"],
